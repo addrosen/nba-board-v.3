@@ -1,0 +1,563 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Catch & Shoot, tonight</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EEF2F1; --sheet:#FFFFFF; --ink:#16212B; --soft:#5B6873; --faint:#A9B4BC; --rule:#D5DDDF;
+  --net:#0E7A68; --net-wash:#D9EEE8; --miss:#B4483A; --miss-wash:#F6E1DD; --warn:#FDECC8; --warn-ink:#7A4B00;
+  --r:10px;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font:400 15px/1.45 "Archivo",system-ui,sans-serif;font-variation-settings:"wdth" 100}
+.num{font-variant-numeric:tabular-nums;font-variation-settings:"wdth" 82}
+button,select,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--net);outline-offset:2px}
+.wrap{max-width:1020px;margin:0 auto;padding:0 16px 64px}
+header{padding:22px 0 10px;display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap}
+h1{margin:0;font-weight:800;font-size:44px;line-height:.95;letter-spacing:-.01em;font-variation-settings:"wdth" 64}
+h1 small{display:block;font-size:15px;font-weight:500;letter-spacing:0;color:var(--soft);font-variation-settings:"wdth" 100;margin-top:6px}
+.tabs{display:flex;gap:4px;background:#DFE6E6;border-radius:999px;padding:4px;flex-wrap:wrap}
+.tabs button{border:0;background:transparent;padding:7px 14px;border-radius:999px;cursor:pointer;font-weight:600}
+.tabs button[aria-selected=true]{background:var(--ink);color:#fff}
+.meta{color:var(--soft);font-size:13px;margin:0 0 10px}
+.controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:8px 0 14px}
+.seg{display:inline-flex;border:1.5px solid var(--ink);border-radius:999px;overflow:hidden}
+.seg button{border:0;background:transparent;padding:6px 14px;cursor:pointer;font-weight:600}
+.seg button[aria-pressed=true]{background:var(--ink);color:#fff}
+select,input[type=search]{border:1.5px solid var(--rule);background:var(--sheet);border-radius:8px;padding:6px 8px}
+input[type=search]{min-width:150px}
+.list{background:var(--sheet);border-radius:var(--r);overflow:hidden;box-shadow:0 0 0 1px var(--rule)}
+.row{display:grid;grid-template-columns:34px minmax(150px,1.6fr) 70px 92px 110px 120px;gap:12px;align-items:center;padding:11px 14px;border-top:1px solid var(--rule);cursor:pointer;background:none;border-left:0;border-right:0;border-bottom:0;width:100%;text-align:left}
+.list>div:first-child .row{border-top:0}
+.row:hover{background:#F6F9F8}
+.rk{color:var(--faint);font-weight:700}
+.who b{display:block;font-weight:700;font-size:16px}
+.who span{color:var(--soft);font-size:13px}
+.tag{display:inline-block;font-size:11px;font-weight:700;padding:0 6px;border-radius:4px;background:var(--warn);color:var(--warn-ink);margin-left:4px;vertical-align:1px;text-transform:uppercase;letter-spacing:.02em}
+.tag.out{background:var(--miss-wash);color:var(--miss)} .tag.in{background:var(--net-wash);color:var(--net)}
+.tag.lock{background:#E4EAEA;color:var(--soft)}
+.mins{font-weight:600}
+.mins span,.exp span,.chg span,.ch span{display:block;font-weight:500;font-size:12px;color:var(--soft)}
+.exp{font-weight:800;font-size:22px;line-height:1.05;font-variation-settings:"wdth" 75}
+.chg{font-weight:700}
+.up{color:var(--net)} .dn{color:var(--miss)} .flat{color:var(--soft)}
+.ch{font-weight:700;line-height:1.3}
+.ch em{font-style:normal} .ch small{font-weight:500;color:var(--soft);font-size:12px}
+.exp .vsm{display:none}
+.bar{height:6px;border-radius:3px;background:#E4EAEA;margin-top:5px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--net);border-radius:3px}
+.detail{display:none;border-top:1px dashed var(--rule);padding:14px 14px 18px;background:#FAFCFB}
+.detail.open{display:block;animation:open .18s ease-out}
+@keyframes open{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.detail.open{animation:none}}
+.dgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:18px}
+.detail h3{margin:0 0 6px;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--soft)}
+.detail p{margin:0 0 6px;color:var(--soft)}
+table{border-collapse:collapse;width:100%}
+td,th{padding:4px 6px;text-align:right;font-variant-numeric:tabular-nums}
+th{font-weight:600;color:var(--soft);font-size:12px}
+td:first-child,th:first-child{text-align:left}
+tr+tr td{border-top:1px solid #EDF1F1}
+.card{background:var(--sheet);border-radius:var(--r);box-shadow:0 0 0 1px var(--rule);padding:16px;margin-bottom:14px}
+.card h2{margin:0 0 4px;font-size:18px}
+.card .sub{color:var(--soft);font-size:13px;margin:0 0 10px}
+.stat{display:inline-block;margin:0 28px 8px 0;vertical-align:top}
+.stat b{display:block;font-size:26px;font-weight:800;line-height:1.05;font-variation-settings:"wdth" 70}
+.stat span{color:var(--soft);font-size:13px}
+.empty{padding:28px 16px;color:var(--soft)}
+.note{background:var(--net-wash);border-radius:8px;padding:10px 12px;font-size:13px;margin:0 0 14px}
+.sortable th{cursor:pointer;user-select:none;white-space:nowrap}
+.sortable th[aria-sort]{color:var(--ink)}
+.hl td{background:#F4FAF8}
+.pill{display:inline-block;border-radius:999px;padding:1px 8px;font-size:12px;font-weight:700}
+.pill.hot{background:var(--net-wash);color:var(--net)} .pill.cold{background:var(--miss-wash);color:var(--miss)}
+.btn{border:1.5px solid var(--ink);background:var(--sheet);border-radius:999px;padding:4px 12px;cursor:pointer;font-weight:600;font-size:13px}
+.btn.solid{background:var(--ink);color:#fff}
+.btn.danger{border-color:var(--miss);color:var(--miss)}
+.btn:disabled{opacity:.4;cursor:default}
+.inj-row{display:grid;grid-template-columns:minmax(140px,1.4fr) 110px 70px minmax(200px,2fr);gap:10px;align-items:center;padding:9px 0;border-top:1px solid #EDF1F1}
+.inj-row:first-of-type{border-top:0}
+.inj-row .acts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.ben{font-size:12px;color:var(--soft);grid-column:1/-1;margin-top:-4px}
+.fun-def{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap}
+.fun-def b{font-size:16px}
+.scroll{overflow-x:auto}
+.tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:6px}
+.tchip{border:1.5px solid var(--rule);background:var(--sheet);border-radius:8px;padding:6px 0 5px;font-weight:700;cursor:pointer;line-height:1.2}
+.tchip small{color:var(--faint);font-weight:700;font-size:11px}
+.tchip em{display:block;font-style:normal;font-weight:500;font-size:11px;color:var(--soft);font-variant-numeric:tabular-nums}
+.tchip.b5{background:var(--miss-wash)}
+.tchip.on small,.tchip.on em{color:#D5DDDF}
+.tchip.tn{border-color:var(--net);color:var(--net)}
+.tchip.on{background:var(--ink);border-color:var(--ink);color:#fff}
+@media (max-width:720px){
+  h1{font-size:36px}
+  .row{grid-template-columns:22px minmax(110px,1fr) 92px 62px;gap:8px;padding:10px 10px}
+  .row .mins,.row .chg{display:none}
+  .exp .vsm{display:block;font-weight:700;font-size:12px}
+  .exp .vsm.up{color:var(--net)} .exp .vsm.dn{color:var(--miss)}
+  .exp{font-size:20px}
+  .inj-row{grid-template-columns:1fr 90px;}
+  .inj-row .acts{grid-column:1/-1;justify-content:flex-start}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Catch &amp; Shoot<small id="sub">Board 3 · loading…</small></h1>
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="board" aria-selected="true">Board</button>
+    <button role="tab" data-tab="funnels" aria-selected="false">Funnels</button>
+    <button role="tab" data-tab="defense" aria-selected="false">Corner Defense</button>
+    <button role="tab" data-tab="teams" aria-selected="false">Teams</button>
+    <button role="tab" data-tab="injuries" aria-selected="false">Injuries</button>
+    <button role="tab" data-tab="results" aria-selected="false">Results</button>
+  </nav>
+</header>
+<p class="meta" id="meta"></p>
+<div class="controls">
+  <div class="seg" id="mode" aria-label="Which threes">
+    <button data-mode="cs" aria-pressed="true">C&amp;S threes</button>
+    <button data-mode="all" aria-pressed="false">All threes</button>
+  </div>
+  <select id="date" aria-label="Night"></select>
+  <span id="viewctl"></span>
+</div>
+<main id="view"></main>
+</div>
+
+<script>
+"use strict";
+const REPO = "addrosen/nba-board-v.3";
+const TOKEN_KEY = "nba3-gh-token";
+const S = { tab: "board", mode: "cs", sort: "exp", game: "all", q: "", date: null, b: null, results: null,
+            calls: {}, callsSha: null, open: new Set(), defSort: ["cdef", -1], showUnlikely: false,
+            teams: null, team: null, topp: "all", b5: "cx", topen: new Set() };
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const pct = (x, d = 0) => (x == null || isNaN(x)) ? "–" : (100 * x).toFixed(d) + "%";
+const sgn = (x, d = 0) => (x == null || isNaN(x)) ? "–" : (x > 0 ? "+" : x < 0 ? "−" : "±") + Math.abs(100 * x).toFixed(d) + "%";
+const f1 = (x) => (x == null || isNaN(x)) ? "–" : Number(x).toFixed(1);
+const f2 = (x) => (x == null || isNaN(x)) ? "–" : Number(x).toFixed(2);
+const tipLocal = (r) => r.tip_utc ? new Date(r.tip_utc).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : (r.tip || "");
+const pAtLeast = (mu, k) => { let s = 0, t = Math.exp(-mu); for (let i = 0; i < k; i++) { s += t; t *= mu / (i + 1); } return Math.max(0, 1 - s); };
+const token = () => { try { return localStorage.getItem(TOKEN_KEY) || ""; } catch (e) { return ""; } };
+
+/* ---------------- data ---------------- */
+async function getJSON(url) { const r = await fetch(url + (url.includes("?") ? "&" : "?") + "t=" + Date.now()); if (!r.ok) throw new Error(r.status); return r.json(); }
+
+async function loadCalls(date) {
+  S.calls = {}; S.callsSha = null;
+  try {   // published copy (no token needed)
+    const j = await getJSON(`edits/${date}.json`); S.calls = j.calls || {};
+  } catch (e) {}
+  if (token()) {   // fresher: straight from the repo
+    try {
+      const r = await fetch(`https://api.github.com/repos/${REPO}/contents/edits/${date}.json?t=${Date.now()}`,
+        { headers: { Authorization: `Bearer ${token()}`, Accept: "application/vnd.github+json" } });
+      if (r.ok) { const j = await r.json(); S.callsSha = j.sha; S.calls = (JSON.parse(decodeURIComponent(escape(atob(j.content.replace(/\n/g, "")))))).calls || {}; }
+    } catch (e) {}
+  }
+}
+
+async function saveCalls() {
+  if (!token()) { signIn(); return false; }
+  const body = JSON.stringify({ date: S.date, calls: S.calls }, null, 1);
+  const put = async () => fetch(`https://api.github.com/repos/${REPO}/contents/edits/${S.date}.json`, {
+    method: "PUT", headers: { Authorization: `Bearer ${token()}`, Accept: "application/vnd.github+json" },
+    body: JSON.stringify({ message: `calls ${S.date}`, content: btoa(unescape(encodeURIComponent(body))), ...(S.callsSha ? { sha: S.callsSha } : {}) }) });
+  let r = await put();
+  if (r.status === 409 || r.status === 422) {          // someone (the Mac) changed it: refresh sha, retry
+    const g = await fetch(`https://api.github.com/repos/${REPO}/contents/edits/${S.date}.json`, { headers: { Authorization: `Bearer ${token()}` } });
+    if (g.ok) { S.callsSha = (await g.json()).sha; r = await put(); }
+  }
+  if (r.ok) { S.callsSha = (await r.json()).content.sha; return true; }
+  alertBox(r.status === 401 || r.status === 403 ? "GitHub didn't accept the token. It needs Contents: Read and write on nba-board-v.3." : `Couldn't save (GitHub ${r.status}).`);
+  return false;
+}
+function signIn() {
+  const v = (window.prompt("Paste your GitHub token (Contents: Read and write on nba-board-v.3). It stays on this device only:") || "").trim();
+  if (v) { try { localStorage.setItem(TOKEN_KEY, v); } catch (e) {} loadCalls(S.date).then(render); }
+}
+function alertBox(msg) { const m = $("#meta"); m.innerHTML = `<b style="color:var(--miss)">${esc(msg)}</b>`; setTimeout(renderMeta, 6000); }
+
+/* ---------------- model on the page: apply calls, recompute ---------------- */
+function teamStatus(team, pid) {
+  const t = S.b.teams[team]; if (!t) return "";
+  const p = t.players.find((x) => x.pid === pid); return p ? (p.status || "") : "";
+}
+// a call is live until the official report changes that player's status
+function liveCalls() {
+  const out = {};
+  for (const [pid, c] of Object.entries(S.calls)) {
+    const now = teamStatus(c.team, Number(pid));
+    out[pid] = { ...c, live: now === (c.status || "") };
+  }
+  return out;
+}
+function cal(mu, k) { const c = S.b.cal[k]; return Math.max(c.floor * mu, c.A + c.B * mu); }
+function rowsNow() {
+  const calls = liveCalls(), applied = S.b.calls || {};
+  return S.b.rows.map((r0) => {
+    const r = { ...r0 }; let min = r.min;
+    if (!r.locked) {
+      for (const [pid, c] of Object.entries(calls)) {
+        if (!c.live || applied[pid] || c.team !== r.team) continue;    // already built in at home
+        if (Number(pid) === r.pid) { r.p_play = c.call === "out" ? 0 : 1; r.call = c.call; continue; }
+        const d = r.dm[`${pid}:${c.call === "out" ? "out" : "in"}`]; if (d) min += d;
+      }
+    }
+    if (Math.abs(min - r.min) > 1e-9) {
+      r.min = Math.max(0, min);
+      r.exp_cs = cal(r.min * r.cs_pm, "cs"); r.exp_3 = cal(r.min * (r.cs_pm + r.ot_pm), "total");
+      r.p_cs = [1, 2, 3, 4].map((k) => pAtLeast(r.exp_cs, k)); r.p_3 = [1, 2, 3, 4].map((k) => pAtLeast(r.exp_3, k));
+      r.shifted = true;
+    }
+    r.E = S.mode === "cs" ? r.exp_cs : r.exp_3; r.N = S.mode === "cs" ? r.n_cs : r.n_3;
+    r.P = S.mode === "cs" ? r.p_cs : r.p_3; r.vs = r.N > 0 ? r.E / r.N - 1 : 0;
+    return r;
+  });
+}
+
+/* ---------------- views ---------------- */
+function renderMeta() {
+  const b = S.b; if (!b) return;
+  const pend = (b.report_pending || []).length ? ` · not filed yet: ${b.report_pending.join(", ")}` : "";
+  const rep = b.report_at ? new Date(b.report_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "none yet";
+  $("#meta").innerHTML = `${b.games.length} games · built ${esc(new Date(b.built).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }))} · injury report ${esc(rep)}${esc(pend)} · model ${esc(b.version)}`;
+  $("#sub").textContent = `Board 3 · ${new Date(b.date + "T12:00").toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}`;
+}
+
+function chanceCols() { return S.mode === "cs" ? [[1, "2+"], [2, "3+"]] : [[1, "2+"], [2, "3+"], [3, "4+"]]; }
+
+function boardView() {
+  const games = S.b.games.map((g) => `${g.away}@${g.home}`);
+  $("#viewctl").innerHTML = `
+    <select id="sort" aria-label="Sort">
+      <option value="exp">Sort: expected makes</option><option value="vs">Sort: biggest increase (%)</option><option value="vsabs">Sort: biggest increase (makes)</option>
+      <option value="p2">Sort: chance of 2+</option><option value="p3">Sort: chance of 3+</option>
+      ${S.mode === "all" ? '<option value="p4">Sort: chance of 4+</option>' : ""}
+    </select>
+    <select id="game" aria-label="Game"><option value="all">All games</option>${S.b.games.map((g) => `<option value="${g.away}@${g.home}">${g.away} @ ${g.home} · ${esc(tipLocal(g))}</option>`).join("")}</select>
+    <input type="search" id="q" placeholder="Player or team" value="${esc(S.q)}">`;
+  $("#sort").value = S.sort; $("#game").value = S.game;
+  $("#sort").onchange = (e) => { S.sort = e.target.value; render(); };
+  $("#game").onchange = (e) => { S.game = e.target.value; render(); };
+  $("#q").oninput = (e) => { S.q = e.target.value; renderList(); };
+  renderList();
+}
+
+function renderList() {
+  let rows = rowsNow().filter((r) => r.p_play >= 0.03 || r.call === "in");
+  if (S.game !== "all") rows = rows.filter((r) => r.game === S.game);
+  const q = S.q.trim().toLowerCase();
+  if (q) rows = rows.filter((r) => (r.name + " " + r.team + " " + r.opp).toLowerCase().includes(q));
+  const key = { exp: (r) => r.E, vs: (r) => (r.E >= 0.6 ? r.vs : -9 + r.E), vsabs: (r) => r.E - r.N, p2: (r) => r.P[1], p3: (r) => r.P[2], p4: (r) => r.P[3] }[S.sort];
+  rows.sort((a, b) => key(b) - key(a));
+  const allR = rowsNow().filter((r) => r.p_play >= 0.03).sort((a, b) => b.E - a.E);
+  const rank = new Map(allR.map((r, i) => [r.pid, i + 1]));
+  const maxE = Math.max(...allR.map((r) => r.E), 1);
+  const cc = chanceCols();
+  const what = S.mode === "cs" ? "C&S makes" : "threes";
+  $("#view").innerHTML = rows.length ? `<div class="list">${rows.map((r) => {
+    const tags = (r.locked ? `<span class="tag lock">locked</span>` : "") +
+      (r.call ? `<span class="tag ${r.call === "out" ? "out" : "in"}">${r.call === "out" ? "called out" : "called in"}</span>` :
+       r.status ? `<span class="tag ${r.status === "out" ? "out" : ""}">${esc(r.status)}${r.p_play < 0.97 ? " " + pct(r.p_play) : ""}</span>` :
+       r.p_play < 0.97 ? `<span class="tag">plays ${pct(r.p_play)}</span>` : "");
+    const cls = r.vs > 0.03 ? "up" : r.vs < -0.03 ? "dn" : "flat";
+    return `<div><button class="row" data-pid="${r.pid}" aria-expanded="${S.open.has(r.pid)}">
+      <span class="rk num">${rank.get(r.pid) ?? ""}</span>
+      <span class="who"><b>${esc(r.name)}${tags}</b><span>${esc(r.team)} ${r.home ? "vs" : "@"} ${esc(r.opp)} · ${esc(tipLocal(r))}</span></span>
+      <span class="mins num">${f1(r.min)}<span>min${r.shifted ? " *" : ""}</span></span>
+      <span class="exp num">${f2(r.E)}<span>exp ${what}</span><span class="vsm ${cls}">${sgn(r.vs)} vs normal</span><div class="bar"><i style="width:${Math.min(100, 100 * r.E / maxE)}%"></i></div></span>
+      <span class="chg num ${cls}">${sgn(r.vs)}<span>vs normal ${f2(r.N)}</span></span>
+      <span class="ch num">${cc.map(([i, l]) => `<em>${pct(r.P[i])}</em> <small>${l}</small>`).join("<br>")}</span>
+    </button><div class="detail ${S.open.has(r.pid) ? "open" : ""}" id="d${r.pid}">${S.open.has(r.pid) ? detail(r) : ""}</div></div>`;
+  }).join("")}</div>
+  <p class="meta" style="margin-top:10px">Expected makes assume he plays. Corner and above-the-break C&amp;S attempts move with the opponent's corner/ATB factor; other threes (pull-ups) don't depend on the defense. * minutes moved by a call made on this page, not yet built in at home.</p>`
+  : `<div class="list"><div class="empty">No players match.</div></div>`;
+  $("#view").querySelectorAll(".row").forEach((el) => el.onclick = () => {
+    const pid = Number(el.dataset.pid);
+    S.open.has(pid) ? S.open.delete(pid) : S.open.add(pid); renderList();
+  });
+}
+
+function detail(r) {
+  const t = S.b.teams[r.team] || { players: [] };
+  const others = t.players.filter((p) => p.pid !== r.pid && (p.status || p.p < 0.97) && p.normal >= 8);
+  const minEff = r.nmin > 0 ? r.min / r.nmin - 1 : 0, matchEff = r.matchup - 1;
+  const crank = rankOf("cdef", r.opp), arank = rankOf("adef", r.opp);
+  const swings = Object.entries(r.dm).map(([k, v]) => { const [pid, st] = k.split(":"); const p = t.players.find((x) => x.pid === Number(pid)); return { name: p ? p.name : nameOf(Number(pid)), st, v, p }; })
+    .filter((x) => x.p && (x.st === "out" ? x.p.p > 0.03 && x.p.p < 0.97 : true) && Math.abs(x.v) >= 0.5)
+    .sort((a, b) => Math.abs(b.v) - Math.abs(a.v)).slice(0, 4);
+  return `<div class="dgrid">
+    <div><h3>Why ${sgn(r.vs)} vs normal</h3>
+      <table><tr><td>Minutes</td><td class="num">${f1(r.nmin)} → ${f1(r.min)}</td><td class="num ${minEff > 0.02 ? "up" : minEff < -0.02 ? "dn" : ""}">${sgn(minEff)}</td></tr>
+      <tr><td>C&amp;S matchup</td><td class="num">corner ×${f2(r.cdef)}, ATB ×${f2(r.adef)}</td><td class="num ${matchEff > 0.02 ? "up" : matchEff < -0.02 ? "dn" : ""}">${sgn(matchEff)}</td></tr></table>
+      <p style="margin-top:6px">${esc(r.opp)} ranks ${crank} of 30 in corner C&amp;S allowed (1 = most) and ${arank} above the break, measured against the shooters each defense faced.</p>
+      ${others.length ? `<p><b>${esc(r.team)} injuries:</b> ${others.map((p) => `${esc(p.name)} (${p.call ? "called " + p.call : esc(p.status || "coach's call")}${p.call ? "" : ", plays " + pct(p.p)})`).join(", ")}</p>` : ""}
+      ${swings.length ? `<p>If… ${swings.map((s) => `${esc(s.name)} ${s.st === "out" ? "sits" : "plays"}: ${s.v > 0 ? "+" : ""}${f1(s.v)} min`).join(" · ")}</p>` : ""}
+    </div>
+    <div><h3>Tonight's threes (if he plays)</h3>
+      <table><tr><th></th><th>att</th><th>make %</th><th>makes</th></tr>
+      <tr><td>Corner C&amp;S</td><td class="num">${f2(r.c3a)}</td><td class="num" rowspan="2">${pct(r.cs_pct, 1)}</td><td class="num" rowspan="2">${f2(r.exp_cs)}</td></tr>
+      <tr><td>Above-break C&amp;S</td><td class="num">${f2(r.atba)}</td></tr>
+      <tr><td>Other threes</td><td class="num">${f2(r.ota)}</td><td class="num">${pct(r.ot_pct, 1)}</td><td class="num">${f2(r.exp_3 - r.exp_cs)}</td></tr>
+      <tr><td><b>All threes</b></td><td class="num">${f2(r.c3a + r.atba + r.ota)}</td><td></td><td class="num"><b>${f2(r.exp_3)}</b></td></tr></table>
+      <p style="margin-top:6px">Without the matchup: ${f2(r.c3a0)} corner, ${f2(r.atba0)} above-break C&amp;S attempts.</p>
+    </div>
+    <div><h3>Chances</h3>
+      <table><tr><th></th><th>1+</th><th>2+</th><th>3+</th><th>4+</th></tr>
+      <tr><td>C&amp;S makes</td>${r.p_cs.map((p) => `<td class="num">${pct(p)}</td>`).join("")}</tr>
+      <tr><td>All threes</td>${r.p_3.map((p) => `<td class="num">${pct(p)}</td>`).join("")}</tr></table>
+      ${r.p_play < 0.97 ? `<p style="margin-top:6px">Chance he plays: ${pct(r.p_play)} (chances above assume he does).</p>` : ""}
+    </div>
+    <div><h3>So far this season</h3>
+      <table><tr><th></th><th>season</th><th>last 5</th></tr>
+      <tr><td>C&amp;S makes</td><td class="num">${f2(r.s_cs)}</td><td class="num">${f2(r.l5_cs)}</td></tr>
+      <tr><td>All threes made</td><td class="num">${f2(r.s_3)}</td><td class="num">${f2(r.l5_3)}</td></tr>
+      <tr><td>C&amp;S att (corner)</td><td class="num">${f2(r.s_csa)} (${f2(r.s_c3a)})</td><td></td></tr>
+      <tr><td>Minutes</td><td class="num">${f1(r.s_min)}</td><td></td></tr></table>
+      <p style="margin-top:6px">${r.gp} games.</p>
+    </div></div>`;
+}
+const nameOf = (pid) => { const r = S.b.rows.find((x) => x.pid === pid); return r ? r.name : String(pid); };
+function rankOf(key, team) {
+  const d = [...S.b.defense].sort((a, b) => (b[key] ?? -1e9) - (a[key] ?? -1e9));
+  const i = d.findIndex((x) => x.team === team); return i < 0 ? "–" : i + 1;
+}
+
+/* ---------- Funnels: the old board's idea, for C&S threes ---------- */
+const FUNNELS = [
+  { id: "cdef", label: "Corner C&S allowed (adjusted)", fmt: (v) => "×" + f2(v), tested: true,
+    note: "Board 3's corner factor: corner C&S threes allowed vs what those shooters normally take. The one funnel that adds to predictions.",
+    qual: (r) => r.c3a >= 1.0, vol: (r) => `${f2(r.c3a)} corner att` },
+  { id: "adef", label: "Above-break C&S allowed (adjusted)", fmt: (v) => "×" + f2(v),
+    note: "Same idea above the break. Defenses barely differ here.", qual: (r) => r.atba >= 1.5, vol: (r) => `${f2(r.atba)} ATB att` },
+  { id: "l10_cs_3pa", label: "C&S 3PA allowed, last 10", fmt: f1, qual: (r) => r.c3a + r.atba >= 2.5, vol: (r) => `${f2(r.c3a + r.atba)} C&S att` },
+  { id: "l10_cs_3pm", label: "C&S 3PM allowed, last 10", fmt: f1, qual: (r) => r.c3a + r.atba >= 2.5, vol: (r) => `${f2(r.c3a + r.atba)} C&S att` },
+  { id: "l10_cs_share", label: "C&S Freq% allowed, last 10", fmt: (v) => pct(v, 1), qual: (r) => r.c3a + r.atba >= 2.5, vol: (r) => `${f2(r.c3a + r.atba)} C&S att` },
+  { id: "l10_corner", label: "Corner 3PA allowed, last 10", fmt: f1, qual: (r) => r.c3a >= 1.0, vol: (r) => `${f2(r.c3a)} corner att` },
+  { id: "l10_atb", label: "Above-break 3PA allowed, last 10", fmt: f1, qual: (r) => r.atba >= 1.5, vol: (r) => `${f2(r.atba)} ATB att` },
+  { id: "spot_ppg", label: "Spot-Up PPG allowed, season", fmt: f1, qual: (r) => r.c3a + r.atba >= 2.5, vol: (r) => `${f2(r.c3a + r.atba)} C&S att` },
+];
+function funnelsView() {
+  $("#viewctl").innerHTML = "";
+  const rows = rowsNow().filter((r) => r.p_play >= 0.5 && r.min >= 18);
+  const tonight = new Set(S.b.games.flatMap((g) => [g.away, g.home]));
+  const opp = Object.fromEntries(S.b.games.flatMap((g) => [[g.away, g.home], [g.home, g.away]]));
+  const what = S.mode === "cs" ? "C&S" : "3PM";
+  $("#view").innerHTML = `<p class="note">Each category ranks all 30 defenses (1 = allows the most); tonight's defenses ranked top 5 show up with the opposing shooters who fit (18+ projected minutes, likely to play, enough volume of that shot). Tested on Nov 1–15: Board 3's corner factor already captures what the funnels catch; the last-10 and spot-up versions are here for reference and added nothing to predictions.</p>` +
+    FUNNELS.map((f) => {
+      const d = S.b.defense.filter((x) => x[f.id] != null).sort((a, b) => b[f.id] - a[f.id]);
+      if (!d.length) return "";
+      const med = d.map((x) => x[f.id]).sort((a, b) => a - b)[Math.floor(d.length / 2)];
+      const cut = d[Math.min(4, d.length - 1)][f.id];
+      const hits = d.map((x, i) => ({ ...x, rank: i + 1 })).filter((x) => x[f.id] >= cut && tonight.has(x.team));
+      return `<div class="card"><h2>${esc(f.label)}</h2><p class="sub">${f.note ? esc(f.note) + " " : ""}League median ${f.fmt(med)}.</p>
+        ${hits.length ? hits.map((x) => {
+          const ps = rows.filter((r) => r.team === opp[x.team] && f.qual(r)).sort((a, b) => b.E - a.E);
+          return `<div style="margin:10px 0 4px"><div class="fun-def"><b>#${x.rank} ${esc(x.team)} defense <span style="font-weight:500;color:var(--soft)">· ${esc(opp[x.team])} shooters</span></b>
+            <span class="num">${f.fmt(x[f.id])} · <span class="pill hot">${sgn(x[f.id] / med - 1)} vs median</span>${f.id.startsWith("l10") ? ` · ${x.l10_games} games` : ""}</span></div>
+            ${ps.length ? `<div class="scroll"><table><tr><th>Player</th><th>min</th><th>volume</th><th>exp ${what}</th><th>vs normal</th><th>2+</th><th>3+</th></tr>
+              ${ps.map((r) => `<tr><td>${esc(r.name)}${r.status ? ` <span class="tag">${esc(r.status)}</span>` : ""}</td><td class="num">${f1(r.min)}</td><td class="num">${f.vol(r)}</td><td class="num"><b>${f2(r.E)}</b></td><td class="num ${r.vs > 0.03 ? "up" : r.vs < -0.03 ? "dn" : ""}">${sgn(r.vs)}</td><td class="num">${pct(r.P[1])}</td><td class="num">${pct(r.P[2])}</td></tr>`).join("")}
+            </table></div>` : `<p class="meta">No ${esc(opp[x.team])} shooters qualify.</p>`}</div>`;
+        }).join("") : `<p class="meta">None of tonight's defenses rank top 5.</p>`}</div>`;
+    }).join("");
+}
+
+/* ---------- Corner Defense ---------- */
+function defenseView() {
+  $("#viewctl").innerHTML = "";
+  const opp = Object.fromEntries(S.b.games.flatMap((g) => [[g.away, g.home], [g.home, g.away]]));
+  const cols = [["team", "Defense"], ["cdef", "Corner C&S ×"], ["adef", "ATB C&S ×"], ["c3_pg", "Corner C&S/g"], ["cs_pg", "C&S 3PA/g"],
+                ["l10_corner", "Corner 3PA L10"], ["l10_cs_3pa", "C&S 3PA L10"], ["spot_ppg", "Spot-up PPG"]];
+  const [k, dir] = S.defSort;
+  const d = [...S.b.defense].sort((a, b) => k === "team" ? dir * a.team.localeCompare(b.team) : dir * ((a[k] ?? -1e9) - (b[k] ?? -1e9)));
+  $("#view").innerHTML = `<p class="note">Corner C&amp;S × = corner catch-and-shoot threes a defense allows compared with what the same shooters normally take (1.10 = 10% more). It's the defensive number Board 3 uses; above the break the defense barely matters (×0.95–1.06). Per-game columns are raw, not adjusted. Tonight's defenses are highlighted with their opponent.</p>
+    <div class="card scroll"><table class="sortable"><tr>${cols.map(([c, l]) => `<th data-k="${c}" ${c === k ? `aria-sort="${dir < 0 ? "descending" : "ascending"}"` : ""}>${l}${c === k ? (dir < 0 ? " ↓" : " ↑") : ""}</th>`).join("")}</tr>
+    ${d.map((x) => `<tr class="${opp[x.team] ? "hl" : ""}"><td><b>${esc(x.team)}</b>${opp[x.team] ? ` <span class="meta">vs ${esc(opp[x.team])}</span>` : ""}</td>
+      <td class="num"><span class="pill ${x.cdef >= 1.08 ? "hot" : x.cdef <= 0.92 ? "cold" : ""}">${f2(x.cdef)}</span></td><td class="num">${f2(x.adef)}</td>
+      <td class="num">${f1(x.c3_pg)}</td><td class="num">${f1(x.cs_pg)}</td><td class="num">${f1(x.l10_corner)}</td><td class="num">${f1(x.l10_cs_3pa)}</td><td class="num">${f1(x.spot_ppg)}</td></tr>`).join("")}
+    </table></div>`;
+  $("#view").querySelectorAll("th[data-k]").forEach((th) => th.onclick = () => {
+    const c = th.dataset.k; S.defSort = [c, S.defSort[0] === c ? -S.defSort[1] : (c === "team" ? 1 : -1)]; defenseView();
+  });
+}
+
+/* ---------- Injuries + calls ---------- */
+function injuriesView() {
+  $("#viewctl").innerHTML = token() ? `<button class="btn" id="signout">Signed in to save calls · sign out</button>` : `<button class="btn solid" id="signin">Sign in to save calls</button>`;
+  if ($("#signin")) $("#signin").onclick = signIn;
+  if ($("#signout")) $("#signout").onclick = () => { try { localStorage.removeItem(TOKEN_KEY); } catch (e) {} render(); };
+  const calls = liveCalls(), rows = rowsNow();
+  const byPid = new Map(rows.map((r) => [r.pid, r]));
+  $("#view").innerHTML = `<p class="note"><b>Out</b> / <b>Plays</b> are binding calls: they change the board right away here (minutes marked *), get built in on the next run at home, and hold until the official report changes that player's status. Statuses show the chance he plays (questionable ≈ 54% before 5 PM CT, 57% after). Players not on the report but in and out of the rotation show their recent rate of playing.</p>` +
+    S.b.games.map((g) => [g.away, g.home].map((team) => {
+      const t = S.b.teams[team]; if (!t) return "";
+      const ps = t.players.filter((p) => p.status || p.p < 0.97 || calls[p.pid]);
+      return `<div class="card"><h2>${esc(team)} <span style="font-weight:500;color:var(--soft)">${team === g.away ? "@" : "vs"} ${esc(t.opp)} · ${esc(tipLocal(g))}</span>${t.locked ? ' <span class="tag lock">locked</span>' : ""}</h2>
+        <p class="sub">${t.filed ? "Report filed." : "Report not filed yet for this team."}</p>
+        ${ps.length ? ps.map((p) => {
+          const c = calls[p.pid];
+          const ben = rows.filter((r) => r.team === team && r.dm[`${p.pid}:${(c && c.live ? c.call : null) === "in" ? "in" : "out"}`])
+            .map((r) => ({ r, d: r.dm[`${p.pid}:out`] })).filter((x) => x.d > 0.4).sort((a, b) => b.d - a.d).slice(0, 4);
+          const state = c ? (c.live ? `<span class="tag ${c.call === "out" ? "out" : "in"}">called ${c.call}</span>` : `<span class="tag lock">call dropped: report changed</span>`) : "";
+          return `<div class="inj-row"><span><b>${esc(p.name)}</b> ${state}</span>
+            <span class="num">${p.status ? `<span class="tag ${p.status === "out" ? "out" : ""}">${esc(p.status)}</span>` : '<span class="meta">not listed</span>'}</span>
+            <span class="num">${pct(p.p)}<span class="meta"> plays</span></span>
+            <span class="acts">${t.locked ? "" : `
+              ${p.p <= 0.03 && !c ? "" : `<button class="btn ${c && c.call === "out" && c.live ? "solid" : "danger"}" data-call="out" data-pid="${p.pid}" data-team="${team}" data-status="${esc(p.status)}" data-name="${esc(p.name)}">Out</button>`}
+              ${p.p >= 0.97 && !c ? "" : `<button class="btn ${c && c.call === "in" && c.live ? "solid" : ""}" data-call="in" data-pid="${p.pid}" data-team="${team}" data-status="${esc(p.status)}" data-name="${esc(p.name)}">Plays</button>`}
+              ${c ? `<button class="btn" data-call="clear" data-pid="${p.pid}">Clear</button>` : ""}`}</span>
+            ${ben.length ? `<span class="ben">If he sits: ${ben.map((x) => `${esc(x.r.name)} +${f1(x.d)} min`).join(", ")}</span>` : ""}</div>`;
+        }).join("") : '<p class="meta">Nobody listed or uncertain.</p>'}
+        <details style="margin-top:8px"><summary class="meta" style="cursor:pointer">Call someone else on ${esc(team)} out (late scratch)</summary>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${rows.filter((r) => r.team === team && r.p_play >= 0.97 && !calls[r.pid]).sort((a, b) => b.min - a.min)
+            .map((r) => `<button class="btn danger" data-call="out" data-pid="${r.pid}" data-team="${team}" data-status="${esc(r.status)}" data-name="${esc(r.name)}">${esc(r.name)}</button>`).join("")}</div></details>
+      </div>`;
+    }).join("")).join("");
+  $("#view").querySelectorAll("button[data-call]").forEach((btn) => btn.onclick = async () => {
+    const { call, pid, team, status, name } = btn.dataset;
+    if (call !== "clear") {
+      if (btn.dataset.armed !== "1") {                 // two taps: arm, then confirm
+        btn.dataset.armed = "1"; btn.textContent = call === "out" ? `Confirm ${name} OUT` : `Confirm ${name} PLAYS`;
+        setTimeout(() => { if (btn.isConnected && btn.dataset.armed === "1") { btn.dataset.armed = ""; btn.textContent = call === "out" ? (btn.closest("details") ? name : "Out") : "Plays"; } }, 4000);
+        return;
+      }
+      S.calls[pid] = { call, team, status: status || "", name, at: new Date().toISOString() };
+    } else delete S.calls[pid];
+    render();
+    if (await saveCalls()) renderMeta();
+  });
+}
+
+/* ---------- Results ---------- */
+function resultsView() {
+  $("#viewctl").innerHTML = "";
+  const R = S.results, k = S.mode === "cs" ? "cs" : "all";
+  if (!R || !R.nights || !R[k]) { $("#view").innerHTML = `<div class="card"><h2>Results</h2><p class="sub">Grading starts the morning after the first posted night, once the box scores and tracking data are in.</p></div>`; return; }
+  const x = R[k], what = k === "cs" ? "C&S makes" : "threes";
+  $("#view").innerHTML = `<div class="card"><h2>${R.nights} night${R.nights > 1 ? "s" : ""} graded</h2>
+      <div class="stat"><b class="num">${f2(x.pred)}</b><span>projected ${what} per player</span></div>
+      <div class="stat"><b class="num">${f2(x.act)}</b><span>actual</span></div>
+      <div class="stat"><b class="num">${x.n}</b><span>player-games (played)</span></div>
+      <div class="scroll"><table><tr><th>Projected</th><th>players</th><th>proj avg</th><th>actual avg</th><th>2+ proj</th><th>2+ actual</th><th>3+ proj</th><th>3+ actual</th></tr>
+      ${x.cal.map((c) => `<tr><td>${c.bin}</td><td class="num">${c.n}</td><td class="num">${f2(c.pred)}</td><td class="num"><b>${f2(c.act)}</b></td><td class="num">${pct(c.p2)}</td><td class="num"><b>${pct(c.a2)}</b></td><td class="num">${pct(c.p3)}</td><td class="num"><b>${pct(c.a3)}</b></td></tr>`).join("")}
+      </table></div></div>` +
+    x.nights.map((n) => `<div class="card"><h2>${new Date(n.date + "T12:00").toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })}</h2>
+      <p class="sub">Top 10: projected ${f1(n.top_pred)}, made <b>${n.top_act}</b> · whole slate: ${f1(n.pred)} projected, ${n.act} made${n.boost_vs_normal != null ? ` · 10 biggest boosts vs normal made ${sgn(n.boost_vs_normal)} vs their normals` : ""}</p>
+      <div class="scroll"><table><tr><th>Top 10</th><th>proj</th><th>made</th></tr>${n.top.map((t) => `<tr><td>${esc(t.PLAYER)} <span class="meta">${esc(t.TEAM)} vs ${esc(t.OPP)}</span></td><td class="num">${f2(t.exp)}</td><td class="num ${t.act >= Math.round(t.exp) ? "up" : "dn"}"><b>${t.act}</b></td></tr>`).join("")}</table></div></div>`).join("");
+}
+
+/* ---------- Teams: players vs bottom-5 C&S defenses ---------- */
+async function teamsView() {
+  if (!S.teams) {
+    $("#view").innerHTML = `<div class="list"><div class="empty">Loading…</div></div>`;
+    try { S.teams = await getJSON("data/teams.json"); } catch (e) { $("#view").innerHTML = `<div class="list"><div class="empty">No team data yet.</div></div>`; return; }
+  }
+  const T = S.teams, st = S.b5, B = T.bottom;
+  const all = [...new Set(T.games.map((g) => g.team))].sort();
+  const slate = S.b ? S.b.games.flatMap((g) => [g.away, g.home]) : [];
+  if (S.team && !all.includes(S.team)) S.team = null;
+  const tonightOpp = S.b ? Object.fromEntries(S.b.games.flatMap((g) => [[g.away, g.home], [g.home, g.away]]))[S.team] : null;
+  $("#viewctl").innerHTML = `<div class="seg" id="b5seg">${Object.entries({ cx: "Composite", pm: "C&S 3PM", pa: "C&S 3PA", fr: "C&S share" }).map(([k, l]) => `<button data-s="${k}" aria-pressed="${k === st}">${l}</button>`).join("")}</div>`;
+  document.querySelectorAll("#b5seg button").forEach((b) => b.onclick = () => { S.b5 = b.dataset.s; S.topp = "all"; teamsView(); });
+  const fmtV = (v) => v == null ? "" : st === "fr" ? pct(v, 1) : st === "cx" ? (v > 0 ? "+" : "") + f2(v) : f1(v);
+  const curAll = T.current[st] || [];
+  const order = [...curAll.map((x) => x.team), ...all.filter((t) => !curAll.some((x) => x.team === t))];
+  const info = Object.fromEntries(curAll.map((x) => [x.team, x]));
+  const grid = `<div class="card"><h2>Teams</h2><p class="sub">Worst C&amp;S defense first, by ${st === "cx" ? "the composite" : esc(T.stats[st])} over each team's last ${T.window} games. Bottom 5 shaded; tonight's teams outlined. Tap a team.</p><div class="tgrid">${order.map((t) => {
+    const x = info[t];
+    return `<button class="tchip ${t === S.team ? "on" : ""} ${slate.includes(t) ? "tn" : ""} ${x && x.rank <= B ? "b5" : ""}" data-t="${t}"><small>${x ? x.rank : "–"}</small> ${t}<em>${x ? fmtV(x.val) : ""}</em></button>`;
+  }).join("")}</div></div>`;
+  const bindGrid = () => document.querySelectorAll(".tchip").forEach((b) => b.onclick = () => { S.team = b.dataset.t; S.topp = "all"; S.topen.clear(); teamsView(); });
+  if (!S.team) { $("#view").innerHTML = grid; bindGrid(); return; }
+  const fmt = (v) => v == null ? "–" : st === "fr" ? pct(v, 1) : st === "cx" ? (v > 0 ? "+" : "") + f2(v) : f1(v);
+  const cur = T.current[st] || [];
+  const curB = cur.filter((x) => x.rank <= B);
+  const oppNow = cur.find((x) => x.team === tonightOpp);
+  const games = T.games.filter((g) => g.team === S.team);
+  const vsAll = games.filter((g) => g.rank[st] != null && g.rank[st] <= B);
+  const other = games.filter((g) => !(g.rank[st] != null && g.rank[st] <= B));
+  const opps = [...new Set(vsAll.map((g) => g.opp))].sort();
+  if (S.topp !== "all" && !opps.includes(S.topp)) S.topp = "all";
+  const vs = S.topp === "all" ? vsAll : vsAll.filter((g) => g.opp === S.topp);
+  const C = T.cols, idx = Object.fromEntries(C.map((c, i) => [c, i]));
+  const agg = (gs) => { const m = new Map(); for (const g of gs) for (const p of g.p) { const a = m.get(p[0]) || { gp: 0, min: 0, cs_m: 0, cs_a: 0, c3_m: 0, c3_a: 0, fg3m: 0, fg3a: 0 }; a.gp++; for (const k of ["min", "cs_m", "cs_a", "c3_m", "c3_a", "fg3m", "fg3a"]) a[k] += p[idx[k]]; m.set(p[0], a); } return m; };
+  const A = agg(vs), O = agg(other);
+  const key = S.mode === "cs" ? "cs_m" : "fg3m";
+  const players = [...A.entries()].map(([pid, a]) => ({ pid, a, o: O.get(pid) })).sort((x, y) => y.a[key] / y.a.gp - x.a[key] / x.a.gp);
+  const pg = (a, k) => a ? a[k] / a.gp : null;
+  const teamLine = (g) => g.p.reduce((s, p) => [s[0] + p[idx.cs_m], s[1] + p[idx.cs_a], s[2] + p[idx.fg3m], s[3] + p[idx.fg3a]], [0, 0, 0, 0]);
+  const dlabel = (d) => new Date(d + "T12:00").toLocaleDateString([], { month: "short", day: "numeric" });
+  $("#view").innerHTML = grid + `
+    <p class="note">Bottom 5 = the five worst defenses by ${st === "cx" ? "the C&amp;S composite" : esc(T.stats[st]) + (st === "fr" ? "" : " per game")} (ties at 5th count), ranked over each defense's last ${T.window} games <b>before</b> that game. A game counts if the opponent was bottom 5 when it was played, even if it isn't now. Raw numbers, not adjusted for opponents.${st === "cx" ? " Composite score = C&amp;S makes, attempts and share of shots allowed, each in standard deviations from that night's league average, averaged (+1.00 = a full SD worse than average)." : ""}</p>
+    <div class="card"><h2>Bottom 5 right now</h2><p class="sub">${esc(T.stats[st])}, last ${T.window} games${tonightOpp ? ` · ${esc(S.team)} plays ${esc(tonightOpp)} tonight${oppNow ? ` (ranked ${oppNow.rank} of ${cur.length})` : ""}` : ""}</p>
+      ${curB.map((x) => `<span class="pill ${x.team === tonightOpp ? "hot" : ""}" style="margin:0 6px 6px 0;background:${x.team === tonightOpp ? "" : "#EEF2F1"}">${x.rank}. ${esc(x.team)} ${fmt(x.val)}</span>`).join("")}
+    </div>
+    <div class="card"><h2>${esc(S.team)} vs bottom-5 defenses</h2>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:6px 0 10px">
+        <select id="topp" aria-label="Opponent"><option value="all">All bottom-5 opponents (${vsAll.length} games)</option>${opps.map((o) => { const n = vsAll.filter((g) => g.opp === o).length; return `<option value="${o}">${o} (${n} game${n > 1 ? "s" : ""})</option>`; }).join("")}</select>
+        <span class="meta">${vsAll.length} of ${games.length} ${esc(S.team)} games came against a bottom-5 defense${vsAll.length ? "" : " so far"}.</span></div>
+      ${vs.length ? `<div class="scroll"><table><tr><th>Date</th><th>Opponent</th><th>its rank then</th><th>${st === "fr" ? "share" : st === "cx" ? "score" : "per game"} then</th><th>team C&amp;S</th><th>team 3PM</th></tr>
+        ${vs.map((g) => { const t = teamLine(g); return `<tr><td>${dlabel(g.d)}</td><td>${g.home ? "vs" : "@"} ${esc(g.opp)}</td><td class="num">${g.rank[st]}</td><td class="num">${fmt(g.val[st])} <span class="meta">(${g.n} g)</span></td><td class="num">${t[0]}-${t[1]}</td><td class="num">${t[2]}-${t[3]}</td></tr>`; }).join("")}</table></div>` : ""}
+    </div>
+    ${players.length ? `<div class="card"><h2>Players in those games</h2><p class="sub">Per game vs ${S.topp === "all" ? "bottom-5 defenses" : esc(S.topp) + " (while bottom 5)"}, with his games against everyone else (not bottom 5) for comparison. Tap a player for his game log.</p>
+      <div class="scroll"><table><tr><th>Player</th><th>GP</th><th>min</th><th>C&amp;S M-A</th><th>C&amp;S %</th><th>corner M-A</th><th>3PM-A</th><th>${S.mode === "cs" ? "C&amp;S" : "3PM"} other games</th><th>diff</th></tr>
+      ${players.map(({ pid, a, o }) => {
+        const main = pg(a, key), oth = pg(o, key), dif = oth == null ? null : main - oth;
+        const open = S.topen.has(pid);
+        const log = open ? vs.map((g) => ({ g, p: g.p.find((p) => p[0] === pid) })).filter((x) => x.p).map(({ g, p }) =>
+          `<tr class="hl"><td style="padding-left:18px">${dlabel(g.d)} ${g.home ? "vs" : "@"} ${esc(g.opp)} <span class="meta">#${g.rank[st]}</span></td><td></td><td class="num">${f1(p[idx.min])}</td><td class="num">${p[idx.cs_m]}-${p[idx.cs_a]}</td><td></td><td class="num">${p[idx.c3_m]}-${p[idx.c3_a]}</td><td class="num">${p[idx.fg3m]}-${p[idx.fg3a]}</td><td></td><td></td></tr>`).join("") : "";
+        return `<tr data-tp="${pid}" style="cursor:pointer"><td><b>${esc(T.names[pid] || pid)}</b> <span class="meta">${open ? "▾" : "▸"}</span></td><td class="num">${a.gp}</td><td class="num">${f1(pg(a, "min"))}</td>
+          <td class="num">${f1(pg(a, "cs_m"))}-${f1(pg(a, "cs_a"))}</td><td class="num">${a.cs_a ? pct(a.cs_m / a.cs_a) : "–"}</td><td class="num">${f1(pg(a, "c3_m"))}-${f1(pg(a, "c3_a"))}</td>
+          <td class="num">${f1(pg(a, "fg3m"))}-${f1(pg(a, "fg3a"))}</td><td class="num">${o ? f1(oth) + ` <span class="meta">(${o.gp} g)</span>` : "–"}</td>
+          <td class="num ${dif > 0.25 ? "up" : dif < -0.25 ? "dn" : ""}">${dif == null ? "–" : (dif > 0 ? "+" : "") + f1(dif)}</td></tr>${log}`;
+      }).join("")}</table></div></div>` : ""}`;
+  bindGrid();
+  if ($("#topp")) { $("#topp").value = S.topp; $("#topp").onchange = (e) => { S.topp = e.target.value; S.topen.clear(); teamsView(); }; }
+  $("#view").querySelectorAll("tr[data-tp]").forEach((tr) => tr.onclick = () => { const p = Number(tr.dataset.tp); S.topen.has(p) ? S.topen.delete(p) : S.topen.add(p); teamsView(); });
+}
+
+/* ---------- shell ---------- */
+function render() {
+  if (!S.b) return;
+  renderMeta();
+  document.querySelectorAll(".tabs button").forEach((b) => b.setAttribute("aria-selected", b.dataset.tab === S.tab));
+  document.querySelectorAll("#mode button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.mode === S.mode));
+  ({ board: boardView, funnels: funnelsView, defense: defenseView, teams: teamsView, injuries: injuriesView, results: resultsView })[S.tab]();
+}
+document.querySelectorAll(".tabs button").forEach((b) => b.onclick = () => { S.tab = b.dataset.tab; location.hash = S.tab; render(); });
+document.querySelectorAll("#mode button").forEach((b) => b.onclick = () => { S.mode = b.dataset.mode; try { localStorage.setItem("nba3-mode", S.mode); } catch (e) {} if (S.sort === "p4" && S.mode === "cs") S.sort = "p3"; render(); });
+
+async function loadDate(date) {
+  S.date = date; S.open.clear();
+  try { S.b = await getJSON(date ? `data/board-${date}.json` : "data/board.json"); S.date = S.b.date; }
+  catch (e) { $("#view").innerHTML = `<div class="list"><div class="empty">No board for that night.</div></div>`; return; }
+  await loadCalls(S.date); render();
+}
+(async function init() {
+  try { const m = localStorage.getItem("nba3-mode"); if (m) S.mode = m; } catch (e) {}
+  if (location.hash.slice(1)) S.tab = location.hash.slice(1);
+  let dates = [];
+  try { dates = await getJSON("data/dates.json"); } catch (e) {}
+  try { S.results = await getJSON("data/results.json"); } catch (e) {}
+  await loadDate(null);
+  const sel = $("#date");
+  sel.innerHTML = [...dates].reverse().map((d) => `<option value="${d}">${new Date(d + "T12:00").toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })}</option>`).join("");
+  if (S.date) sel.value = S.date;
+  sel.onchange = (e) => loadDate(e.target.value);
+  setInterval(() => { if (document.visibilityState === "visible" && S.date === (dates[dates.length - 1] || S.date)) loadDate(S.date); }, 5 * 60 * 1000);
+})();
+</script>
+</body>
+</html>
