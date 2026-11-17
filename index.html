@@ -89,6 +89,9 @@ tr+tr td{border-top:1px solid #EDF1F1}
 .fun-def{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap}
 .fun-def b{font-size:16px}
 .scroll{overflow-x:auto}
+.minrow td{padding:2px 4px 8px;border-top:0!important}
+.minbox{width:56px;border:1.5px solid var(--rule);border-radius:6px;padding:3px 5px;font-size:13px;text-align:right;background:var(--sheet)}
+.minbox:not(:placeholder-shown){border-color:var(--net);background:var(--net-wash)}
 table.nowrap td,table.nowrap th{white-space:nowrap}
 .tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:6px}
 .tchip{border:1.5px solid var(--rule);background:var(--sheet);border-radius:8px;padding:6px 0 5px;font-weight:700;cursor:pointer;line-height:1.2}
@@ -142,7 +145,7 @@ const REPO = "addrosen/nba-board-v.3";
 const TOKEN_KEY = "nba3-gh-token";
 const S = { tab: "board", mode: "cs", sort: "exp", game: "all", q: "", date: null, b: null, results: null,
             calls: {}, callsSha: null, open: new Set(), defSort: ["cdef", -1], showUnlikely: false,
-            teams: null, tdef: null, team: null, topp: "all", b5: "cx", topen: new Set(), tsort: null, ddef: null, doff: null, dsort: null, dopen: new Set(), obTeam: "all", ob: null, obDef: "both", obSeason: "both", obTier: "all", obSort: ["cs_a", -1], obOpen: new Set() };
+            teams: null, tdef: null, team: null, topp: "all", b5: "cx", topen: new Set(), tsort: null, ddef: null, doff: null, dsort: null, dopen: new Set(), obTeam: "all", obMin: {}, ob: null, obDef: "both", obSeason: "both", obTier: "all", obSort: ["cs_a", -1], obOpen: new Set() };
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const pct = (x, d = 0) => (x == null || isNaN(x)) ? "–" : (100 * x).toFixed(d) + "%";
@@ -694,6 +697,13 @@ async function okcbosView() {
                 ["rel", "his C&S %"], ["fg3p", "his 3P%"], ["tier", "shooter"]];
   const [sk, sd2] = S.obSort;
   const TXT = ["name", "tier", "season", "team"];
+  const PCTCOL = new Set(["vs", "vs3", "rel", "fg3p"]);        // entered as %, stored as fractions
+  for (const [k, v] of Object.entries(S.obMin)) {
+    if (v === "" || v == null || isNaN(v)) continue;
+    const m = PCTCOL.has(k) ? Number(v) / 100 : Number(v);
+    shooters = shooters.filter((a) => a[k] != null && a[k] >= m - 1e-9);
+  }
+  const nMin = Object.values(S.obMin).filter((v) => v !== "" && v != null && !isNaN(v)).length;
   shooters.sort((x, y) => sk === "team" ? sd2 * (x.team.localeCompare(y.team) || (y.cs_a - x.cs_a)) : TXT.includes(sk) ? sd2 * String(x[sk]).localeCompare(String(y[sk])) : sd2 * ((x[sk] ?? -1e9) - (y[sk] ?? -1e9)));
   const tierPill = (t) => `<span class="pill ${t === "unreliable" ? "cold" : t === "reliable" ? "hot" : ""}" style="${t === "average" || t === "rare" ? "background:#EEF2F1" : ""}">${TIER_LABEL[t]}</span>`;
   const vsCell = (v) => v == null ? "–" : `<span class="${v > 0.1 ? "up" : v < -0.1 ? "dn" : ""}">${sgn(v)}</span>`;
@@ -712,11 +722,14 @@ async function okcbosView() {
       <div class="card"><h2>Shooters</h2>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 10px"><select id="obtier"><option value="all">All shooters</option>${O.tiers.map((t) => `<option value="${t}">${TIER_LABEL[t]} only</option>`).join("")}</select>
         <select id="obteam"><option value="all">All teams</option>${obTeams.map((t) => `<option value="${t}">${t}</option>`).join("")}</select>
-        <span class="meta">Tap a column to sort, a player for his games.</span></div>
-      <div class="scroll"><table class="sortable nowrap" id="obtable"><tr>${COLS.map(([k, l]) => `<th data-k="${k}" ${k === sk ? `aria-sort="${sd2 < 0 ? "descending" : "ascending"}"` : ""}>${esc(l)}${k === sk ? (sd2 < 0 ? " ↓" : " ↑") : ""}</th>`).join("")}</tr>
+        <span class="meta">Tap a column to sort, a player for his games. Type a minimum under any column (percent columns in %, e.g. 20 or -10).</span>
+        ${nMin ? `<button class="btn" id="obclear">Clear ${nMin} minimum${nMin > 1 ? "s" : ""}</button>` : ""}<span class="meta">${shooters.length} shooters</span></div>
+      <div class="scroll"><table class="sortable nowrap" id="obtable"><tr>${COLS.map(([k, l]) => `<th data-k="${k}" ${k === "team" ? 'style="text-align:left"' : ""} ${k === sk ? `aria-sort="${sd2 < 0 ? "descending" : "ascending"}"` : ""}>${esc(l)}${k === sk ? (sd2 < 0 ? " ↓" : " ↑") : ""}</th>`).join("")}</tr>
+      <tr class="minrow">${COLS.map(([k]) => TXT.includes(k) ? `<td>${k === "name" ? `<span class="meta">min ≥</span>` : ""}</td>`
+        : `<td><input type="number" inputmode="decimal" step="any" class="minbox" data-k="${k}" value="${esc(S.obMin[k] ?? "")}" placeholder="${PCTCOL.has(k) ? "%" : "–"}" aria-label="Minimum ${esc(k)}"></td>`).join("")}</tr>
       ${shooters.map((a) => {
         const open = S.obOpen.has(a.key);
-        return `<tr data-k2="${a.key}" style="cursor:pointer"><td><b>${esc(a.name)}</b> <span class="meta">${open ? "▾" : "▸"}</span></td><td>${esc(a.team)}</td><td class="meta">${a.season === "2026-27" ? "26-27" : "25-26"}</td>
+        return `<tr data-k2="${a.key}" style="cursor:pointer"><td><b>${esc(a.name)}</b> <span class="meta">${open ? "▾" : "▸"}</span></td><td style="text-align:left">${esc(a.team)}</td><td class="meta">${a.season === "2026-27" ? "26-27" : "25-26"}</td>
           <td class="num">${a.gp}</td><td class="num">${f1(a.mpg)}</td><td class="num">${a.cs_m}</td><td class="num">${a.cs_a}</td><td class="num"><b>${f1(a.apg)}</b></td><td class="num">${f1(a.normal)}</td>
           <td class="num">${vsCell(a.vs)}</td><td class="num">${a.fg3m}</td><td class="num">${a.fg3a}</td><td class="num"><b>${f1(a.apg3)}</b></td><td class="num">${f1(a.normal3)}</td><td class="num">${vsCell(a.vs3)}</td><td class="num">${pct(a.rel, 1)} <span class="meta">(${a.raw == null ? "–" : pct(a.raw)} on ${a.pl.cs_a})</span></td><td class="num">${pct(a.fg3p)}</td><td>${tierPill(a.tier)}</td></tr>
           ${open ? a.log.slice().sort((x, y) => y.date.localeCompare(x.date)).map((r) => `<tr class="hl"><td style="padding-left:18px">${dl(r.date)} ${r.home ? "vs" : "@"} ${esc(r.def)}</td><td>${esc(r.team)}</td><td></td><td></td><td class="num">${f1(r.min)}</td>
@@ -724,6 +737,11 @@ async function okcbosView() {
             <td class="num">${r.fg3m}</td><td class="num">${r.fg3a}</td><td></td><td class="num meta">exp ${f1(r.exp3)}</td><td class="num">${vsCell(r.exp3 > 0 ? r.fg3a / r.exp3 - 1 : null)}</td><td></td><td></td><td></td></tr>`).join("") : ""}`;
       }).join("")}</table></div></div>` : `<div class="card"><p class="sub">No games for this selection yet.</p></div>`}`;
   if ($("#obtier")) { $("#obtier").value = S.obTier; $("#obtier").onchange = (e) => { S.obTier = e.target.value; okcbosView(); }; }
+  $("#view").querySelectorAll("#obtable .minbox").forEach((el) => {
+    el.onclick = (e) => e.stopPropagation();
+    el.onchange = () => { const k = el.dataset.k; if (el.value === "") delete S.obMin[k]; else S.obMin[k] = el.value; okcbosView().then(() => { const n = $(`#obtable .minbox[data-k="${k}"]`); }); };
+  });
+  if ($("#obclear")) $("#obclear").onclick = () => { S.obMin = {}; okcbosView(); };
   if ($("#obteam")) { $("#obteam").value = S.obTeam; $("#obteam").onchange = (e) => { S.obTeam = e.target.value; okcbosView(); }; }
   $("#view").querySelectorAll("#obtable th[data-k]").forEach((th) => th.onclick = () => { const k = th.dataset.k; S.obSort = [k, S.obSort[0] === k ? -S.obSort[1] : (["name", "tier", "season", "team"].includes(k) ? 1 : -1)]; okcbosView(); });
   $("#view").querySelectorAll("#obtable tr[data-k2]").forEach((tr) => tr.onclick = () => { const k = tr.dataset.k2; S.obOpen.has(k) ? S.obOpen.delete(k) : S.obOpen.add(k); okcbosView(); });
