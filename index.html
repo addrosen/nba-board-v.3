@@ -141,7 +141,7 @@ const REPO = "addrosen/nba-board-v.3";
 const TOKEN_KEY = "nba3-gh-token";
 const S = { tab: "board", mode: "cs", sort: "exp", game: "all", q: "", date: null, b: null, results: null,
             calls: {}, callsSha: null, open: new Set(), defSort: ["cdef", -1], showUnlikely: false,
-            teams: null, tdef: null, team: null, topp: "all", b5: "cx", topen: new Set(), tsort: null, ddef: null, doff: null, dsort: null };
+            teams: null, tdef: null, team: null, topp: "all", b5: "cx", topen: new Set(), tsort: null, ddef: null, doff: null, dsort: null, dopen: new Set() };
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const pct = (x, d = 0) => (x == null || isNaN(x)) ? "–" : (100 * x).toFixed(d) + "%";
@@ -394,15 +394,45 @@ async function defenseView() {
   $("#view").querySelectorAll("#deftable > tbody > tr > th[data-k], #deftable th[data-k]").forEach((th) => { if (th.closest("table").id !== "deftable") return; th.onclick = () => {
     const c = th.dataset.k; S.defSort = [c, S.defSort[0] === c ? -S.defSort[1] : (c === "team" ? 1 : -1)]; defenseView(); }; });
   $("#view").querySelectorAll("tr[data-def]").forEach((tr) => tr.onclick = () => {
-    const t = tr.dataset.def; S.ddef = S.ddef === t ? null : t; S.doff = S.ddef ? (opp[S.ddef] || null) : null;
+    const t = tr.dataset.def; S.ddef = S.ddef === t ? null : t; S.doff = S.ddef ? (opp[S.ddef] || null) : null; S.dopen.clear();
     defenseView().then(() => { const el = $("#defpanel"); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); });
   });
   if ($("#dclose")) $("#dclose").onclick = () => { S.ddef = null; S.doff = null; defenseView(); };
   const sel = $("#doff");
-  if (sel) { sel.value = S.doff || ""; sel.onclick = (e) => e.stopPropagation(); sel.onchange = (e) => { S.doff = e.target.value || null; defenseView(); }; }
+  if (sel) { sel.value = S.doff || ""; sel.onclick = (e) => e.stopPropagation(); sel.onchange = (e) => { S.doff = e.target.value || null; S.dopen.clear(); defenseView(); }; }
+  $("#view").querySelectorAll("#dptable tr[data-dp]").forEach((tr) => tr.onclick = () => {
+    const p = Number(tr.dataset.dp); S.dopen.has(p) ? S.dopen.delete(p) : S.dopen.add(p); defenseView();
+  });
   $("#view").querySelectorAll("#dptable th[data-k]").forEach((th) => th.onclick = (e) => {
     e.stopPropagation(); const c = th.dataset.k; S.dsort = [c, S.dsort && S.dsort[0] === c ? -S.dsort[1] : (c === "name" ? 1 : -1)]; defenseView();
   });
+}
+
+// last 10 games for a player on the Corner Defense panel, each compared with his season average
+function gameLog(p, idx, defTeam) {
+  const all = p.log, n = all.length;
+  const avg = (k) => all.reduce((s, z) => s + z.p[idx[k]], 0) / n;
+  const A = { min: avg("min"), c3_a: avg("c3_a"), c3_m: avg("c3_m"), cs_m: avg("cs_m"), cs_a: avg("cs_a"), fg3m: avg("fg3m") };
+  const cdef = Object.fromEntries(S.b.defense.map((y) => [y.team, y.cdef]));
+  const chg = (v, base) => base > 0 ? v / base - 1 : null;
+  const cls = (v) => v == null ? "" : v > 0.1 ? "up" : v < -0.1 ? "dn" : "";
+  const last = all.slice(-10).reverse();
+  const tot = (k) => last.reduce((s, z) => s + z.p[idx[k]], 0) / last.length;
+  const L = { min: tot("min"), c3_a: tot("c3_a"), c3_m: tot("c3_m"), cs_m: tot("cs_m"), cs_a: tot("cs_a"), fg3m: tot("fg3m"), fg3a: tot("fg3a") };
+  const pctCell = (v) => `<td class="num ${cls(v)}">${v == null ? "–" : sgn(v)}</td>`;
+  const dl = (d) => new Date(d + "T12:00").toLocaleDateString([], { month: "short", day: "numeric" });
+  return `<div class="scroll"><table class="nowrap" style="width:auto;min-width:640px">
+    <tr><th>Last ${last.length} games</th><th>opp corner × now</th><th>min</th><th>corner M-A</th><th>corner A vs avg</th><th>C&amp;S M-A</th><th>C&amp;S M vs avg</th><th>3PM-A</th><th>3PM vs avg</th></tr>
+    ${last.map(({ g, p: q }) => `<tr${g.opp === defTeam ? ' style="font-weight:700"' : ""}><td>${dl(g.d)} ${g.home ? "vs" : "@"} ${esc(g.opp)}</td>
+      <td class="num">${cdef[g.opp] != null ? f2(cdef[g.opp]) : "–"}</td><td class="num">${f1(q[idx.min])}</td>
+      <td class="num">${q[idx.c3_m]}-${q[idx.c3_a]}</td>${pctCell(chg(q[idx.c3_a], A.c3_a))}
+      <td class="num">${q[idx.cs_m]}-${q[idx.cs_a]}</td>${pctCell(chg(q[idx.cs_m], A.cs_m))}
+      <td class="num">${q[idx.fg3m]}-${q[idx.fg3a]}</td>${pctCell(chg(q[idx.fg3m], A.fg3m))}</tr>`).join("")}
+    <tr style="border-top:2px solid var(--rule)"><td><b>Last ${last.length} avg</b></td><td></td><td class="num">${f1(L.min)}</td>
+      <td class="num">${f1(L.c3_m)}-${f1(L.c3_a)}</td>${pctCell(chg(L.c3_a, A.c3_a))}<td class="num">${f1(L.cs_m)}-${f1(L.cs_a)}</td>${pctCell(chg(L.cs_m, A.cs_m))}
+      <td class="num">${f1(L.fg3m)}-${f1(L.fg3a)}</td>${pctCell(chg(L.fg3m, A.fg3m))}</tr>
+    <tr><td class="meta">Season avg (${n} g)</td><td></td><td class="num meta">${f1(A.min)}</td><td class="num meta">${f1(A.c3_m)}-${f1(A.c3_a)}</td><td></td><td class="num meta">${f1(A.cs_m)}-${f1(A.cs_a)}</td><td></td><td class="num meta">${f1(A.fg3m)}</td><td></td></tr>
+  </table></div><p class="meta" style="margin:4px 0 0">"vs avg" = that game compared with his season average. Games against ${esc(defTeam)} in bold. Opponent corner × is today's value.</p>`;
 }
 
 function defPanel(x, opp) {
@@ -426,7 +456,7 @@ function defPanel(x, opp) {
   const players = [...by.values()].map((a) => {
     const n = a.log.length, l5 = a.log.slice(-5), vsd = a.log.filter((z) => z.g.opp === x.team), r = tonightRows.get(a.pid);
     return {
-      pid: a.pid, name: T.names[a.pid] || String(a.pid), r, gp: n, vsd,
+      pid: a.pid, name: T.names[a.pid] || String(a.pid), r, gp: n, vsd, log: a.log,
       min: sum(a.log, "min") / n, c3_m: sum(a.log, "c3_m") / n, c3_a: sum(a.log, "c3_a") / n,
       c3_pct: sum(a.log, "c3_a") ? sum(a.log, "c3_m") / sum(a.log, "c3_a") : null,
       cs_m: sum(a.log, "cs_m") / n, cs_a: sum(a.log, "cs_a") / n,
@@ -445,9 +475,10 @@ function defPanel(x, opp) {
     if (c === "c3_pct") return pct(v); if (c === "t_vs") return `<span class="${v > 0.03 ? "up" : v < -0.03 ? "dn" : ""}">${sgn(v)}</span>`;
     if (c === "t_c3a" || c === "t_c3a0") return f2(v); if (c === "t_exp") return `<b>${f2(v)}</b>`;
     if (c === "v_gp") return v ? `${v} <span class="meta">(corner ${p.v_c3})</span>` : "0"; if (c === "gp") return v; return f1(v); };
-  return head + `<p class="meta" style="margin:0 0 8px">${esc(S.doff)} players${tonightRows.size ? `: tonight's projections against ${esc(x.team)} ("w/o matchup" = corner attempts against an average defense)` : ""}; season and last-5 per game; games against ${esc(x.team)} earlier this season. Tap a column to sort.</p>
+  return head + `<p class="meta" style="margin:0 0 8px">Tap a player for his last 10 games. ${esc(S.doff)} players${tonightRows.size ? `: tonight's projections against ${esc(x.team)} ("w/o matchup" = corner attempts against an average defense)` : ""}; season and last-5 per game; games against ${esc(x.team)} earlier this season. Tap a column to sort.</p>
     ${players.length ? `<div class="scroll"><table id="dptable" class="sortable nowrap"><tr>${COLS.map(([c, l]) => `<th data-k="${c}" ${c === sk ? `aria-sort="${sd < 0 ? "descending" : "ascending"}"` : ""}>${esc(l)}${c === sk ? (sd < 0 ? " ↓" : " ↑") : ""}</th>`).join("")}</tr>
-      ${players.map((p) => `<tr><td><b>${esc(p.name)}</b>${p.r && p.r.status ? ` <span class="tag">${esc(p.r.status)}</span>` : ""}</td>${COLS.slice(1).map(([c]) => `<td class="num">${cell(p, c)}</td>`).join("")}</tr>`).join("")}
+      ${players.map((p) => `<tr data-dp="${p.pid}" style="cursor:pointer"><td><b>${esc(p.name)}</b> <span class="meta">${S.dopen.has(p.pid) ? "▾" : "▸"}</span>${p.r && p.r.status ? ` <span class="tag">${esc(p.r.status)}</span>` : ""}</td>${COLS.slice(1).map(([c]) => `<td class="num">${cell(p, c)}</td>`).join("")}</tr>
+        ${S.dopen.has(p.pid) ? `<tr><td colspan="${COLS.length}" style="padding:6px 0 12px 14px;background:#F4FAF8">${gameLog(p, idx, x.team)}</td></tr>` : ""}`).join("")}
     </table></div>` : `<p class="meta">No players found.</p>`}`;
 }
 
