@@ -142,7 +142,7 @@ const REPO = "addrosen/nba-board-v.3";
 const TOKEN_KEY = "nba3-gh-token";
 const S = { tab: "board", mode: "cs", sort: "exp", game: "all", q: "", date: null, b: null, results: null,
             calls: {}, callsSha: null, open: new Set(), defSort: ["cdef", -1], showUnlikely: false,
-            teams: null, tdef: null, team: null, topp: "all", b5: "cx", topen: new Set(), tsort: null, ddef: null, doff: null, dsort: null, dopen: new Set(), ob: null, obDef: "both", obSeason: "both", obTier: "all", obSort: ["cs_a", -1], obOpen: new Set() };
+            teams: null, tdef: null, team: null, topp: "all", b5: "cx", topen: new Set(), tsort: null, ddef: null, doff: null, dsort: null, dopen: new Set(), obTeam: "all", ob: null, obDef: "both", obSeason: "both", obTier: "all", obSort: ["cs_a", -1], obOpen: new Set() };
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const pct = (x, d = 0) => (x == null || isNaN(x)) ? "–" : (100 * x).toFixed(d) + "%";
@@ -661,7 +661,7 @@ async function okcbosView() {
       const pl = sd.players[r[ix.pid]];
       rows.push({ season: sn, date: r[ix.date], def: r[ix.def], team: r[ix.team], home: r[ix.home], pid: r[ix.pid], min: r[ix.min],
                   cs_m: r[ix.cs_m], cs_a: r[ix.cs_a], c3_a: r[ix.c3_a], fg3m: r[ix.fg3m], fg3a: r[ix.fg3a],
-                  exp: r[ix.min] * pl.apm, pl });
+                  exp: r[ix.min] * pl.apm, exp3: r[ix.min] * (pl.apm3 || 0), pl });
     }
   }
   const games = new Set(rows.map((r) => r.season + r.date + r.def)).size;
@@ -677,17 +677,24 @@ async function okcbosView() {
   // shooters: one line per player per season
   const by = new Map();
   for (const r of rows) {
-    const k = r.season + ":" + r.pid, a = by.get(k) || { key: k, pid: r.pid, season: r.season, pl: r.pl, teams: new Set(), log: [], gp: 0, min: 0, cs_m: 0, cs_a: 0, c3_a: 0, fg3m: 0, fg3a: 0, exp: 0 };
-    a.teams.add(r.team); a.log.push(r); a.gp++; for (const f of ["min", "cs_m", "cs_a", "c3_a", "fg3m", "fg3a", "exp"]) a[f] += r[f]; by.set(k, a);
+    const k = r.season + ":" + r.pid, a = by.get(k) || { key: k, pid: r.pid, season: r.season, pl: r.pl, teams: new Set(), log: [], gp: 0, min: 0, cs_m: 0, cs_a: 0, c3_a: 0, fg3m: 0, fg3a: 0, exp: 0, exp3: 0 };
+    a.teams.add(r.team); a.log.push(r); a.gp++; for (const f of ["min", "cs_m", "cs_a", "c3_a", "fg3m", "fg3a", "exp", "exp3"]) a[f] += r[f]; by.set(k, a);
   }
   let shooters = [...by.values()].map((a) => ({ ...a, name: a.pl.name, team: [...a.teams].join("/"), apg: a.cs_a / a.gp, mpg: a.min / a.gp,
-    vs: a.exp > 0 ? a.cs_a / a.exp - 1 : null, rel: a.pl.cs_adj, raw: a.pl.cs_pct, fg3p: a.pl.fg3_pct, tier: a.pl.tier, normal: a.pl.apg }))
+    vs: a.exp > 0 ? a.cs_a / a.exp - 1 : null, rel: a.pl.cs_adj, raw: a.pl.cs_pct, fg3p: a.pl.fg3_pct, tier: a.pl.tier, normal: a.pl.apg,
+    apg3: a.fg3a / a.gp, normal3: a.pl.apg3, vs3: a.exp3 > 0 ? a.fg3a / a.exp3 - 1 : null }))
     .filter((a) => a.cs_a > 0 || a.exp >= 0.5);
   if (S.obTier !== "all") shooters = shooters.filter((a) => a.tier === S.obTier);
-  const COLS = [["name", "Player"], ["season", "season"], ["gp", "GP"], ["mpg", "min/g"], ["cs_m", "C&S M"], ["cs_a", "C&S A"], ["apg", "C&S A/g"],
-                ["normal", "his normal A/g"], ["vs", "vs normal"], ["rel", "his C&S %"], ["fg3p", "his 3P%"], ["tier", "shooter"]];
+  const obTeams = [...new Set([...by.values()].flatMap((a) => [...a.teams]))].sort();
+  if (S.obTeam !== "all" && !obTeams.includes(S.obTeam)) S.obTeam = "all";
+  if (S.obTeam !== "all") shooters = shooters.filter((a) => a.teams.has(S.obTeam));
+  const COLS = [["name", "Player"], ["team", "team"], ["season", "season"], ["gp", "GP"], ["mpg", "min/g"],
+                ["cs_m", "C&S M"], ["cs_a", "C&S A"], ["apg", "C&S A/g"], ["normal", "normal C&S A/g"], ["vs", "C&S vs normal"],
+                ["fg3m", "3PM"], ["fg3a", "3PA"], ["apg3", "3PA/g"], ["normal3", "normal 3PA/g"], ["vs3", "3PA vs normal"],
+                ["rel", "his C&S %"], ["fg3p", "his 3P%"], ["tier", "shooter"]];
   const [sk, sd2] = S.obSort;
-  shooters.sort((x, y) => (sk === "name" || sk === "tier" || sk === "season") ? sd2 * String(x[sk]).localeCompare(String(y[sk])) : sd2 * ((x[sk] ?? -1e9) - (y[sk] ?? -1e9)));
+  const TXT = ["name", "tier", "season", "team"];
+  shooters.sort((x, y) => sk === "team" ? sd2 * (x.team.localeCompare(y.team) || (y.cs_a - x.cs_a)) : TXT.includes(sk) ? sd2 * String(x[sk]).localeCompare(String(y[sk])) : sd2 * ((x[sk] ?? -1e9) - (y[sk] ?? -1e9)));
   const tierPill = (t) => `<span class="pill ${t === "unreliable" ? "cold" : t === "reliable" ? "hot" : ""}" style="${t === "average" || t === "rare" ? "background:#EEF2F1" : ""}">${TIER_LABEL[t]}</span>`;
   const vsCell = (v) => v == null ? "–" : `<span class="${v > 0.1 ? "up" : v < -0.1 ? "dn" : ""}">${sgn(v)}</span>`;
   const dl = (d) => new Date(d + "T12:00").toLocaleDateString([], { month: "short", day: "numeric", year: "2-digit" });
@@ -704,18 +711,21 @@ async function okcbosView() {
       </table></div></div>
       <div class="card"><h2>Shooters</h2>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 10px"><select id="obtier"><option value="all">All shooters</option>${O.tiers.map((t) => `<option value="${t}">${TIER_LABEL[t]} only</option>`).join("")}</select>
+        <select id="obteam"><option value="all">All teams</option>${obTeams.map((t) => `<option value="${t}">${t}</option>`).join("")}</select>
         <span class="meta">Tap a column to sort, a player for his games.</span></div>
       <div class="scroll"><table class="sortable nowrap" id="obtable"><tr>${COLS.map(([k, l]) => `<th data-k="${k}" ${k === sk ? `aria-sort="${sd2 < 0 ? "descending" : "ascending"}"` : ""}>${esc(l)}${k === sk ? (sd2 < 0 ? " ↓" : " ↑") : ""}</th>`).join("")}</tr>
       ${shooters.map((a) => {
         const open = S.obOpen.has(a.key);
-        return `<tr data-k2="${a.key}" style="cursor:pointer"><td><b>${esc(a.name)}</b> <span class="meta">${esc(a.team)} ${open ? "▾" : "▸"}</span></td><td class="meta">${a.season === "2026-27" ? "26-27" : "25-26"}</td>
+        return `<tr data-k2="${a.key}" style="cursor:pointer"><td><b>${esc(a.name)}</b> <span class="meta">${open ? "▾" : "▸"}</span></td><td>${esc(a.team)}</td><td class="meta">${a.season === "2026-27" ? "26-27" : "25-26"}</td>
           <td class="num">${a.gp}</td><td class="num">${f1(a.mpg)}</td><td class="num">${a.cs_m}</td><td class="num">${a.cs_a}</td><td class="num"><b>${f1(a.apg)}</b></td><td class="num">${f1(a.normal)}</td>
-          <td class="num">${vsCell(a.vs)}</td><td class="num">${pct(a.rel, 1)} <span class="meta">(${a.raw == null ? "–" : pct(a.raw)} on ${a.pl.cs_a})</span></td><td class="num">${pct(a.fg3p)}</td><td>${tierPill(a.tier)}</td></tr>
-          ${open ? a.log.slice().sort((x, y) => y.date.localeCompare(x.date)).map((r) => `<tr class="hl"><td style="padding-left:18px">${dl(r.date)} ${esc(r.team)} ${r.home ? "vs" : "@"} ${esc(r.def)}</td><td></td><td></td><td class="num">${f1(r.min)}</td>
-            <td class="num">${r.cs_m}</td><td class="num">${r.cs_a}</td><td class="num">corner ${r.c3_a}</td><td class="num">exp ${f1(r.exp)}</td><td class="num">${vsCell(r.exp > 0 ? r.cs_a / r.exp - 1 : null)}</td><td class="num meta">3PM ${r.fg3m}-${r.fg3a}</td><td></td><td></td></tr>`).join("") : ""}`;
+          <td class="num">${vsCell(a.vs)}</td><td class="num">${a.fg3m}</td><td class="num">${a.fg3a}</td><td class="num"><b>${f1(a.apg3)}</b></td><td class="num">${f1(a.normal3)}</td><td class="num">${vsCell(a.vs3)}</td><td class="num">${pct(a.rel, 1)} <span class="meta">(${a.raw == null ? "–" : pct(a.raw)} on ${a.pl.cs_a})</span></td><td class="num">${pct(a.fg3p)}</td><td>${tierPill(a.tier)}</td></tr>
+          ${open ? a.log.slice().sort((x, y) => y.date.localeCompare(x.date)).map((r) => `<tr class="hl"><td style="padding-left:18px">${dl(r.date)} ${r.home ? "vs" : "@"} ${esc(r.def)}</td><td>${esc(r.team)}</td><td></td><td></td><td class="num">${f1(r.min)}</td>
+            <td class="num">${r.cs_m}</td><td class="num">${r.cs_a}</td><td class="num meta">corner ${r.c3_a}</td><td class="num meta">exp ${f1(r.exp)}</td><td class="num">${vsCell(r.exp > 0 ? r.cs_a / r.exp - 1 : null)}</td>
+            <td class="num">${r.fg3m}</td><td class="num">${r.fg3a}</td><td></td><td class="num meta">exp ${f1(r.exp3)}</td><td class="num">${vsCell(r.exp3 > 0 ? r.fg3a / r.exp3 - 1 : null)}</td><td></td><td></td><td></td></tr>`).join("") : ""}`;
       }).join("")}</table></div></div>` : `<div class="card"><p class="sub">No games for this selection yet.</p></div>`}`;
   if ($("#obtier")) { $("#obtier").value = S.obTier; $("#obtier").onchange = (e) => { S.obTier = e.target.value; okcbosView(); }; }
-  $("#view").querySelectorAll("#obtable th[data-k]").forEach((th) => th.onclick = () => { const k = th.dataset.k; S.obSort = [k, S.obSort[0] === k ? -S.obSort[1] : (["name", "tier", "season"].includes(k) ? 1 : -1)]; okcbosView(); });
+  if ($("#obteam")) { $("#obteam").value = S.obTeam; $("#obteam").onchange = (e) => { S.obTeam = e.target.value; okcbosView(); }; }
+  $("#view").querySelectorAll("#obtable th[data-k]").forEach((th) => th.onclick = () => { const k = th.dataset.k; S.obSort = [k, S.obSort[0] === k ? -S.obSort[1] : (["name", "tier", "season", "team"].includes(k) ? 1 : -1)]; okcbosView(); });
   $("#view").querySelectorAll("#obtable tr[data-k2]").forEach((tr) => tr.onclick = () => { const k = tr.dataset.k2; S.obOpen.has(k) ? S.obOpen.delete(k) : S.obOpen.add(k); okcbosView(); });
 }
 
