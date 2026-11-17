@@ -119,6 +119,7 @@ table.nowrap td,table.nowrap th{white-space:nowrap}
     <button role="tab" data-tab="funnels" aria-selected="false">Funnels</button>
     <button role="tab" data-tab="defense" aria-selected="false">Corner Defense</button>
     <button role="tab" data-tab="teams" aria-selected="false">Teams</button>
+    <button role="tab" data-tab="okcbos" aria-selected="false">OKC/BOS</button>
     <button role="tab" data-tab="injuries" aria-selected="false">Injuries</button>
     <button role="tab" data-tab="results" aria-selected="false">Results</button>
   </nav>
@@ -141,7 +142,7 @@ const REPO = "addrosen/nba-board-v.3";
 const TOKEN_KEY = "nba3-gh-token";
 const S = { tab: "board", mode: "cs", sort: "exp", game: "all", q: "", date: null, b: null, results: null,
             calls: {}, callsSha: null, open: new Set(), defSort: ["cdef", -1], showUnlikely: false,
-            teams: null, tdef: null, team: null, topp: "all", b5: "cx", topen: new Set(), tsort: null, ddef: null, doff: null, dsort: null, dopen: new Set() };
+            teams: null, tdef: null, team: null, topp: "all", b5: "cx", topen: new Set(), tsort: null, ddef: null, doff: null, dsort: null, dopen: new Set(), ob: null, obDef: "both", obSeason: "both", obTier: "all", obSort: ["cs_a", -1], obOpen: new Set() };
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const pct = (x, d = 0) => (x == null || isNaN(x)) ? "–" : (100 * x).toFixed(d) + "%";
@@ -633,13 +634,98 @@ async function teamsView() {
   $("#view").querySelectorAll("tr[data-tp]").forEach((tr) => tr.onclick = () => { const p = Number(tr.dataset.tp); S.topen.has(p) ? S.topen.delete(p) : S.topen.add(p); teamsView(); });
 }
 
+/* ---------- OKC/BOS: who the Thunder and Celtics let take C&S threes ---------- */
+const ordinal = (n) => n + (n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] || "th");
+const TIER_LABEL = { unreliable: "Unreliable", average: "Average", reliable: "Reliable", rare: "Rarely shoots" };
+async function okcbosView() {
+  if (!S.ob) {
+    $("#view").innerHTML = `<div class="list"><div class="empty">Loading…</div></div>`;
+    try { S.ob = await getJSON("data/okcbos.json"); } catch (e) { $("#view").innerHTML = `<div class="list"><div class="empty">No OKC/BOS data yet.</div></div>`; return; }
+  }
+  const O = S.ob, cut = O.cut;
+  const seg = (id, cur, opts) => `<div class="seg" id="${id}">${opts.map(([k, l]) => `<button data-v="${k}" aria-pressed="${k === cur}">${l}</button>`).join("")}</div>`;
+  $("#viewctl").innerHTML = seg("obdef", S.obDef, [["both", "Both"], ["OKC", "OKC"], ["BOS", "BOS"]]) + " " +
+    seg("obsea", S.obSeason, [["both", "Both seasons"], ["2026-27", "2026-27"], ["2025-26", "2025-26"]]);
+  const bindSeg = (id, fn) => document.querySelectorAll(`#${id} button`).forEach((b) => b.onclick = () => { fn(b.dataset.v); S.obOpen.clear(); okcbosView(); });
+  bindSeg("obdef", (v) => S.obDef = v); bindSeg("obsea", (v) => S.obSeason = v);
+  const seasons = (S.obSeason === "both" ? ["2026-27", "2025-26"] : [S.obSeason]);
+  const missing = seasons.filter((s) => !(O.seasons[s] && O.seasons[s].tracked));
+  const live = seasons.filter((s) => O.seasons[s] && O.seasons[s].tracked);
+  const defs = S.obDef === "both" ? O.defs : [S.obDef];
+  // rows for the selection, each with its season's player info
+  const rows = [];
+  for (const sn of live) {
+    const sd = O.seasons[sn], ix = Object.fromEntries(sd.cols.map((c, i) => [c, i]));
+    for (const r of sd.rows) {
+      if (!defs.includes(r[ix.def])) continue;
+      const pl = sd.players[r[ix.pid]];
+      rows.push({ season: sn, date: r[ix.date], def: r[ix.def], team: r[ix.team], home: r[ix.home], pid: r[ix.pid], min: r[ix.min],
+                  cs_m: r[ix.cs_m], cs_a: r[ix.cs_a], c3_a: r[ix.c3_a], fg3m: r[ix.fg3m], fg3a: r[ix.fg3a],
+                  exp: r[ix.min] * pl.apm, pl });
+    }
+  }
+  const games = new Set(rows.map((r) => r.season + r.date + r.def)).size;
+  const sum = (xs, k) => xs.reduce((a, r) => a + r[k], 0);
+  // tier summary vs league
+  const lgAvg = (t, k) => { const v = live.map((sn) => O.seasons[sn].league.tiers[t][k]).filter((x) => x != null); return v.length ? v.reduce((a, b) => a + b) / v.length : null; };
+  const totA = sum(rows, "cs_a");
+  const tierRows = O.tiers.map((t) => {
+    const x = rows.filter((r) => r.pl.tier === t), a = sum(x, "cs_a"), e = sum(x, "exp");
+    return { t, share: totA ? a / totA : null, apg: games ? a / games : null, vs: e > 0 ? a / e - 1 : null, pct: a ? sum(x, "cs_m") / a : null,
+             lshare: lgAvg(t, "share"), lvs: lgAvg(t, "vs"), lapg: lgAvg(t, "apg") };
+  });
+  // shooters: one line per player per season
+  const by = new Map();
+  for (const r of rows) {
+    const k = r.season + ":" + r.pid, a = by.get(k) || { key: k, pid: r.pid, season: r.season, pl: r.pl, teams: new Set(), log: [], gp: 0, min: 0, cs_m: 0, cs_a: 0, c3_a: 0, fg3m: 0, fg3a: 0, exp: 0 };
+    a.teams.add(r.team); a.log.push(r); a.gp++; for (const f of ["min", "cs_m", "cs_a", "c3_a", "fg3m", "fg3a", "exp"]) a[f] += r[f]; by.set(k, a);
+  }
+  let shooters = [...by.values()].map((a) => ({ ...a, name: a.pl.name, team: [...a.teams].join("/"), apg: a.cs_a / a.gp, mpg: a.min / a.gp,
+    vs: a.exp > 0 ? a.cs_a / a.exp - 1 : null, rel: a.pl.cs_adj, raw: a.pl.cs_pct, fg3p: a.pl.fg3_pct, tier: a.pl.tier, normal: a.pl.apg }))
+    .filter((a) => a.cs_a > 0 || a.exp >= 0.5);
+  if (S.obTier !== "all") shooters = shooters.filter((a) => a.tier === S.obTier);
+  const COLS = [["name", "Player"], ["season", "season"], ["gp", "GP"], ["mpg", "min/g"], ["cs_m", "C&S M"], ["cs_a", "C&S A"], ["apg", "C&S A/g"],
+                ["normal", "his normal A/g"], ["vs", "vs normal"], ["rel", "his C&S %"], ["fg3p", "his 3P%"], ["tier", "shooter"]];
+  const [sk, sd2] = S.obSort;
+  shooters.sort((x, y) => (sk === "name" || sk === "tier" || sk === "season") ? sd2 * String(x[sk]).localeCompare(String(y[sk])) : sd2 * ((x[sk] ?? -1e9) - (y[sk] ?? -1e9)));
+  const tierPill = (t) => `<span class="pill ${t === "unreliable" ? "cold" : t === "reliable" ? "hot" : ""}" style="${t === "average" || t === "rare" ? "background:#EEF2F1" : ""}">${TIER_LABEL[t]}</span>`;
+  const vsCell = (v) => v == null ? "–" : `<span class="${v > 0.1 ? "up" : v < -0.1 ? "dn" : ""}">${sgn(v)}</span>`;
+  const dl = (d) => new Date(d + "T12:00").toLocaleDateString([], { month: "short", day: "numeric", year: "2-digit" });
+  const who = defs.join(" + ");
+  const rk = live.length === 1 ? O.seasons[live[0]].rank_unreliable : null;
+  $("#view").innerHTML = `
+    <p class="note">Every opposing player's catch-and-shoot threes against ${esc(who)}. <b>Shooter</b> = his C&amp;S 3P% that season over all his games, steadied toward the league rate (${cut.steady} attempts): <b>unreliable</b> under ${pct(cut.low)}, <b>reliable</b> ${pct(cut.high)}+, <b>rarely shoots</b> under ${cut.rare} C&amp;S attempt a game. <b>vs normal</b> = his C&amp;S attempts in those games compared with what he takes in the same minutes against everyone.</p>
+    ${missing.length ? `<p class="note" style="background:var(--warn);color:var(--warn-ink)">${missing.join(", ")}: game-by-game C&amp;S data hasn't been pulled yet. Board 3's next scheduled run fetches it once (about 5 minutes).</p>` : ""}
+    ${rows.length ? `<div class="card"><h2>Who gets the C&amp;S looks</h2>
+      <p class="sub">${games} game${games === 1 ? "" : "s"} · ${esc(who)} allowed ${f1(totA / Math.max(games, 1))} C&amp;S 3PA per game${rk ? ` · among 30 defenses, extra C&amp;S looks for unreliable shooters (vs their normal): ${defs.map((d) => `${d} ${ordinal(rk.vs[d])}`).join(", ")}; share of looks going to them: ${defs.map((d) => `${d} ${ordinal(rk.share[d])}`).join(", ")}` : ""}.</p>
+      <div class="scroll"><table class="nowrap"><tr><th>Shooter</th><th>share of C&amp;S 3PA</th><th>league</th><th>C&amp;S 3PA/g</th><th>league</th><th>vs his normal</th><th>league</th><th>made</th></tr>
+      ${tierRows.map((x) => `<tr><td>${tierPill(x.t)}</td><td class="num"><b>${pct(x.share)}</b></td><td class="num meta">${pct(x.lshare)}</td>
+        <td class="num"><b>${f1(x.apg)}</b></td><td class="num meta">${f1(x.lapg)}</td><td class="num"><b>${vsCell(x.vs)}</b></td><td class="num meta">${x.lvs == null ? "–" : sgn(x.lvs)}</td><td class="num">${pct(x.pct)}</td></tr>`).join("")}
+      </table></div></div>
+      <div class="card"><h2>Shooters</h2>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 10px"><select id="obtier"><option value="all">All shooters</option>${O.tiers.map((t) => `<option value="${t}">${TIER_LABEL[t]} only</option>`).join("")}</select>
+        <span class="meta">Tap a column to sort, a player for his games.</span></div>
+      <div class="scroll"><table class="sortable nowrap" id="obtable"><tr>${COLS.map(([k, l]) => `<th data-k="${k}" ${k === sk ? `aria-sort="${sd2 < 0 ? "descending" : "ascending"}"` : ""}>${esc(l)}${k === sk ? (sd2 < 0 ? " ↓" : " ↑") : ""}</th>`).join("")}</tr>
+      ${shooters.map((a) => {
+        const open = S.obOpen.has(a.key);
+        return `<tr data-k2="${a.key}" style="cursor:pointer"><td><b>${esc(a.name)}</b> <span class="meta">${esc(a.team)} ${open ? "▾" : "▸"}</span></td><td class="meta">${a.season === "2026-27" ? "26-27" : "25-26"}</td>
+          <td class="num">${a.gp}</td><td class="num">${f1(a.mpg)}</td><td class="num">${a.cs_m}</td><td class="num">${a.cs_a}</td><td class="num"><b>${f1(a.apg)}</b></td><td class="num">${f1(a.normal)}</td>
+          <td class="num">${vsCell(a.vs)}</td><td class="num">${pct(a.rel, 1)} <span class="meta">(${a.raw == null ? "–" : pct(a.raw)} on ${a.pl.cs_a})</span></td><td class="num">${pct(a.fg3p)}</td><td>${tierPill(a.tier)}</td></tr>
+          ${open ? a.log.slice().sort((x, y) => y.date.localeCompare(x.date)).map((r) => `<tr class="hl"><td style="padding-left:18px">${dl(r.date)} ${esc(r.team)} ${r.home ? "vs" : "@"} ${esc(r.def)}</td><td></td><td></td><td class="num">${f1(r.min)}</td>
+            <td class="num">${r.cs_m}</td><td class="num">${r.cs_a}</td><td class="num">corner ${r.c3_a}</td><td class="num">exp ${f1(r.exp)}</td><td class="num">${vsCell(r.exp > 0 ? r.cs_a / r.exp - 1 : null)}</td><td class="num meta">3PM ${r.fg3m}-${r.fg3a}</td><td></td><td></td></tr>`).join("") : ""}`;
+      }).join("")}</table></div></div>` : `<div class="card"><p class="sub">No games for this selection yet.</p></div>`}`;
+  if ($("#obtier")) { $("#obtier").value = S.obTier; $("#obtier").onchange = (e) => { S.obTier = e.target.value; okcbosView(); }; }
+  $("#view").querySelectorAll("#obtable th[data-k]").forEach((th) => th.onclick = () => { const k = th.dataset.k; S.obSort = [k, S.obSort[0] === k ? -S.obSort[1] : (["name", "tier", "season"].includes(k) ? 1 : -1)]; okcbosView(); });
+  $("#view").querySelectorAll("#obtable tr[data-k2]").forEach((tr) => tr.onclick = () => { const k = tr.dataset.k2; S.obOpen.has(k) ? S.obOpen.delete(k) : S.obOpen.add(k); okcbosView(); });
+}
+
 /* ---------- shell ---------- */
 function render() {
   if (!S.b) return;
   renderMeta();
   document.querySelectorAll(".tabs button").forEach((b) => b.setAttribute("aria-selected", b.dataset.tab === S.tab));
   document.querySelectorAll("#mode button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.mode === S.mode));
-  ({ board: boardView, funnels: funnelsView, defense: defenseView, teams: teamsView, injuries: injuriesView, results: resultsView })[S.tab]();
+  ({ board: boardView, funnels: funnelsView, defense: defenseView, teams: teamsView, okcbos: okcbosView, injuries: injuriesView, results: resultsView })[S.tab]();
 }
 document.querySelectorAll(".tabs button").forEach((b) => b.onclick = () => { S.tab = b.dataset.tab; location.hash = S.tab; render(); });
 document.querySelectorAll("#mode button").forEach((b) => b.onclick = () => { S.mode = b.dataset.mode; try { localStorage.setItem("nba3-mode", S.mode); } catch (e) {} if (S.sort === "p4" && S.mode === "cs") S.sort = "p3"; render(); });
