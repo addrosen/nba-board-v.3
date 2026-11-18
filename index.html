@@ -260,14 +260,17 @@ function boardView() {
   renderList();
 }
 
+const BOARD_MIN = 15;   // main board: only players averaging 15+ minutes this season
+const onBoard = (r) => (r.s_min ?? 0) >= BOARD_MIN;
+
 function renderList() {
-  let rows = rowsNow().filter((r) => r.p_play >= 0.03 || r.call === "in");
+  let rows = rowsNow().filter((r) => onBoard(r) && (r.p_play >= 0.03 || r.call === "in"));
   if (S.game !== "all") rows = rows.filter((r) => r.game === S.game);
   const q = S.q.trim().toLowerCase();
   if (q) rows = rows.filter((r) => (r.name + " " + r.team + " " + r.opp).toLowerCase().includes(q));
   const key = { exp: (r) => r.E, vs: (r) => (r.E >= 0.6 ? r.vs : -9 + r.E), vsabs: (r) => r.E - r.N, p2: (r) => r.P[1], p3: (r) => r.P[2], p4: (r) => r.P[3] }[S.sort];
   rows.sort((a, b) => key(b) - key(a));
-  const allR = rowsNow().filter((r) => r.p_play >= 0.03).sort((a, b) => b.E - a.E);
+  const allR = rowsNow().filter((r) => onBoard(r) && r.p_play >= 0.03).sort((a, b) => b.E - a.E);
   const rank = new Map(allR.map((r, i) => [r.pid, i + 1]));
   const maxE = Math.max(...allR.map((r) => r.E), 1);
   const cc = chanceCols();
@@ -287,7 +290,7 @@ function renderList() {
       <span class="ch num">${cc.map(([i, l]) => `<em>${pct(r.P[i])}</em> <small>${l}</small>`).join("<br>")}</span>
     </button><div class="detail ${S.open.has(r.pid) ? "open" : ""}" id="d${r.pid}">${S.open.has(r.pid) ? detail(r) : ""}</div></div>`;
   }).join("")}</div>
-  <p class="meta" style="margin-top:10px">Expected makes assume he plays. Corner and above-the-break C&amp;S attempts move with the opponent's corner/ATB factor; other threes (pull-ups) don't depend on the defense. * minutes moved by a call made on this page, not yet built in at home.</p>`
+  <p class="meta" style="margin-top:10px">Only players averaging ${BOARD_MIN}+ minutes this season are shown. Expected makes assume he plays. Corner and above-the-break C&amp;S attempts move with the opponent's corner/ATB factor; other threes (pull-ups) don't depend on the defense. * minutes moved by a call made on this page, not yet built in at home.</p>`
   : `<div class="list"><div class="empty">No players match.</div></div>`;
   $("#view").querySelectorAll(".row").forEach((el) => el.onclick = () => {
     const pid = Number(el.dataset.pid);
