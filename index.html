@@ -68,6 +68,10 @@ tr+tr td{border-top:1px solid #EDF1F1}
 .card{background:var(--sheet);border-radius:var(--r);box-shadow:0 0 0 1px var(--rule);padding:16px;margin-bottom:14px}
 .card h2{margin:0 0 4px;font-size:18px}
 .card .sub{color:var(--soft);font-size:13px;margin:0 0 10px}
+.obnotes{margin:0 0 14px;padding:12px;border-radius:10px;background:#FAFCFB;box-shadow:0 0 0 1px var(--rule)}
+.obnotes label{display:block;margin:0 0 6px}
+.obnotes textarea{display:block;width:100%;box-sizing:border-box;min-height:96px;resize:vertical;border:1.5px solid var(--rule);background:var(--sheet);border-radius:8px;padding:8px 10px;font:inherit;line-height:1.4}
+.obnotes .foot{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:6px}
 .stat{display:inline-block;margin:0 28px 8px 0;vertical-align:top}
 .stat b{display:block;font-size:26px;font-weight:800;line-height:1.05;font-variation-settings:"wdth" 70}
 .stat span{color:var(--soft);font-size:13px}
@@ -145,7 +149,7 @@ const REPO = "addrosen/nba-board-v.3";
 const TOKEN_KEY = "nba3-gh-token";
 const S = { tab: "board", mode: "cs", sort: "exp", game: "all", q: "", date: null, b: null, results: null,
             calls: {}, callsSha: null, open: new Set(), defSort: ["cdef", -1], showUnlikely: false,
-            teams: null, tdef: null, team: null, topp: "all", b5: "cx", topen: new Set(), tsort: null, ddef: null, doff: null, dsort: null, dopen: new Set(), obTeam: "all", obMin: {}, ob: null, obDef: "both", obSeason: "both", obTier: "all", obSort: ["cs_a", -1], obOpen: new Set() };
+            teams: null, tdef: null, team: null, topp: "all", b5: "cx", topen: new Set(), tsort: null, ddef: null, doff: null, dsort: null, dopen: new Set(), obTeam: "all", obMin: {}, ob: null, obDef: "both", obSeason: "both", obTier: "all", obSort: ["cs_a", -1], obOpen: new Set(), obNotes: {}, obNotesSha: null, obNotesLoaded: false, obNoteMsg: "" };
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const pct = (x, d = 0) => (x == null || isNaN(x)) ? "–" : (100 * x).toFixed(d) + "%";
@@ -643,7 +647,69 @@ async function teamsView() {
 /* ---------- OKC/BOS: who the Thunder and Celtics let take C&S threes ---------- */
 const ordinal = (n) => n + (n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] || "th");
 const TIER_LABEL = { unreliable: "Unreliable", average: "Average", reliable: "Reliable", rare: "Rarely shoots" };
+/* team notes: kept on this device as you type, synced to the repo (edits/okcbos-notes.json) when signed in */
+const NOTES_PATH = "edits/okcbos-notes.json", NOTES_KEY = "nba3-okcbos-notes";
+const b64 = (s) => btoa(unescape(encodeURIComponent(s)));
+const unb64 = (s) => decodeURIComponent(escape(atob(s.replace(/\n/g, ""))));
+const newerNote = (a, b) => (a && (!b || (a.at || "") > (b.at || ""))) ? a : b;
+const mergeNotes = (...sets) => { const o = {}; for (const set of sets) for (const [k, v] of Object.entries(set || {})) o[k] = newerNote(v, o[k]); return o; };
+const hasNote = (t) => !!(S.obNotes[t] && S.obNotes[t].text && S.obNotes[t].text.trim());
+function localNotes() { try { return JSON.parse(localStorage.getItem(NOTES_KEY) || "{}"); } catch (e) { return {}; } }
+function keepNotesLocal() { try { localStorage.setItem(NOTES_KEY, JSON.stringify(S.obNotes)); } catch (e) {} }
+async function remoteNotes() {
+  if (!token()) return null;
+  try {
+    const r = await fetch(`https://api.github.com/repos/${REPO}/contents/${NOTES_PATH}?t=${Date.now()}`, { headers: { Authorization: `Bearer ${token()}`, Accept: "application/vnd.github+json" } });
+    if (r.ok) { const j = await r.json(); return { sha: j.sha, notes: JSON.parse(unb64(j.content)).notes || {} }; }
+    if (r.status === 404) return { sha: null, notes: {} };
+  } catch (e) {}
+  return null;
+}
+async function loadObNotes() {
+  let pub = {}; try { pub = (await getJSON(NOTES_PATH)).notes || {}; } catch (e) {}
+  const rem = await remoteNotes(); if (rem) S.obNotesSha = rem.sha;
+  S.obNotes = mergeNotes(pub, rem && rem.notes, localNotes(), S.obNotes);
+  keepNotesLocal(); S.obNotesLoaded = true;
+  if (rem && Object.keys(S.obNotes).some((k) => JSON.stringify(S.obNotes[k]) !== JSON.stringify(rem.notes[k]))) syncNotes();   // edits made while signed out / offline
+}
+function noteStatus(msg) { S.obNoteMsg = msg; const el = $("#obnotestat"); if (el) el.textContent = msg; }
+let notesTimer = null, notesBusy = false, notesAgain = false;
+async function syncNotes() {
+  clearTimeout(notesTimer); notesTimer = null;
+  if (!token()) { noteStatus("Saved on this device. Sign in to sync it to your other devices."); return; }
+  if (notesBusy) { notesAgain = true; return; }
+  notesBusy = true; noteStatus("Saving…");
+  const put = () => fetch(`https://api.github.com/repos/${REPO}/contents/${NOTES_PATH}`, {
+    method: "PUT", headers: { Authorization: `Bearer ${token()}`, Accept: "application/vnd.github+json" },
+    body: JSON.stringify({ message: "okc/bos notes", content: b64(JSON.stringify({ notes: S.obNotes }, null, 1)), ...(S.obNotesSha ? { sha: S.obNotesSha } : {}) }) });
+  let r = null;
+  try {
+    r = await put();
+    if (r.status === 409 || r.status === 422) {          // changed on another device: merge, retry
+      const rem = await remoteNotes();
+      if (rem) { S.obNotesSha = rem.sha; S.obNotes = mergeNotes(rem.notes, S.obNotes); keepNotesLocal(); r = await put(); }
+    }
+    if (r.ok) S.obNotesSha = (await r.json()).content.sha;
+  } catch (e) {}
+  notesBusy = false;
+  if (r && r.ok) noteStatus(`Saved and synced · ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`);
+  else noteStatus(r && (r.status === 401 || r.status === 403) ? "Saved on this device. GitHub didn't accept the token, so it isn't synced."
+                : `Saved on this device. Couldn't sync${r ? ` (GitHub ${r.status})` : " (offline?)"}; it will retry next time you open this tab.`);
+  if (notesAgain) { notesAgain = false; syncNotes(); }
+}
+function noteFor(team) {
+  const n = S.obNotes[team] || {};
+  const when = n.at ? new Date(n.at).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "";
+  const status = S.obNoteMsg || (when ? `Last edited ${when}` : "") + (token() ? "" : `${when ? " · " : ""}Saves on this device; sign in to sync across devices.`);
+  return `<div class="obnotes"><label for="obnote"><b>Notes on ${esc(team)}</b> <span class="meta">your notes, kept for this team across nights and seasons</span></label>
+    <textarea id="obnote" placeholder="Anything worth remembering about ${esc(team)} against OKC/BOS…">${esc(n.text || "")}</textarea>
+    <div class="foot"><span class="meta" id="obnotestat">${esc(status)}</span>${token() ? "" : `<button class="btn" id="obnotesignin">Sign in to sync</button>`}</div></div>`;
+}
+
 async function okcbosView() {
+  const prevNote = document.activeElement && document.activeElement.id === "obnote" ? document.activeElement : null;   // keep the cursor through the 5-minute refresh
+  const noteSel = prevNote ? [prevNote.selectionStart, prevNote.selectionEnd, prevNote.scrollTop] : null;
+  if (!S.obNotesLoaded) { S.obNotesLoaded = true; loadObNotes().then(() => { if (S.tab === "okcbos" && !(document.activeElement && document.activeElement.id === "obnote")) okcbosView(); }); }
   if (!S.ob) {
     $("#view").innerHTML = `<div class="list"><div class="empty">Loading…</div></div>`;
     try { S.ob = await getJSON("data/okcbos.json"); } catch (e) { $("#view").innerHTML = `<div class="list"><div class="empty">No OKC/BOS data yet.</div></div>`; return; }
@@ -724,9 +790,10 @@ async function okcbosView() {
       </table></div></div>
       <div class="card"><h2>Shooters</h2>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 10px"><select id="obtier"><option value="all">All shooters</option>${O.tiers.map((t) => `<option value="${t}">${TIER_LABEL[t]} only</option>`).join("")}</select>
-        <select id="obteam"><option value="all">All teams</option>${obTeams.map((t) => `<option value="${t}">${t}</option>`).join("")}</select>
+        <select id="obteam"><option value="all">All teams</option>${obTeams.map((t) => `<option value="${t}">${t}${hasNote(t) ? " ✎" : ""}</option>`).join("")}</select>
         <span class="meta">Tap a column to sort, a player for his games. Type a minimum under any column (percent columns in %, e.g. 20 or -10).</span>
         ${nMin ? `<button class="btn" id="obclear">Clear ${nMin} minimum${nMin > 1 ? "s" : ""}</button>` : ""}<span class="meta">${shooters.length} shooters</span></div>
+      ${S.obTeam !== "all" ? noteFor(S.obTeam) : ""}
       <div class="scroll"><table class="sortable nowrap" id="obtable"><tr>${COLS.map(([k, l]) => `<th data-k="${k}" ${k === "team" ? 'style="text-align:left"' : ""} ${k === sk ? `aria-sort="${sd2 < 0 ? "descending" : "ascending"}"` : ""}>${esc(l)}${k === sk ? (sd2 < 0 ? " ↓" : " ↑") : ""}</th>`).join("")}</tr>
       <tr class="minrow">${COLS.map(([k]) => TXT.includes(k) ? `<td>${k === "name" ? `<span class="meta">min ≥</span>` : ""}</td>`
         : `<td><input type="number" inputmode="decimal" step="any" class="minbox" data-k="${k}" value="${esc(S.obMin[k] ?? "")}" placeholder="${PCTCOL.has(k) ? "%" : "–"}" aria-label="Minimum ${esc(k)}"></td>`).join("")}</tr>
@@ -745,7 +812,19 @@ async function okcbosView() {
     el.onchange = () => { const k = el.dataset.k; if (el.value === "") delete S.obMin[k]; else S.obMin[k] = el.value; okcbosView().then(() => { const n = $(`#obtable .minbox[data-k="${k}"]`); }); };
   });
   if ($("#obclear")) $("#obclear").onclick = () => { S.obMin = {}; okcbosView(); };
-  if ($("#obteam")) { $("#obteam").value = S.obTeam; $("#obteam").onchange = (e) => { S.obTeam = e.target.value; okcbosView(); }; }
+  if ($("#obteam")) { $("#obteam").value = S.obTeam; $("#obteam").onchange = (e) => { S.obTeam = e.target.value; S.obNoteMsg = ""; okcbosView(); }; }
+  const ta = $("#obnote");
+  if (ta) {
+    const team = S.obTeam;
+    ta.oninput = () => {
+      S.obNotes[team] = { text: ta.value, at: new Date().toISOString() }; keepNotesLocal();
+      noteStatus(token() ? "Saving…" : "Saved on this device. Sign in to sync it to your other devices.");
+      clearTimeout(notesTimer); notesTimer = setTimeout(syncNotes, 1500);
+    };
+    ta.onblur = () => { if (notesTimer) syncNotes(); };
+    if (noteSel) { ta.focus(); ta.setSelectionRange(noteSel[0], noteSel[1]); ta.scrollTop = noteSel[2]; }
+  }
+  if ($("#obnotesignin")) $("#obnotesignin").onclick = () => { signIn(); if (token()) { S.obNotesLoaded = false; S.obNoteMsg = ""; okcbosView(); } };
   $("#view").querySelectorAll("#obtable th[data-k]").forEach((th) => th.onclick = () => { const k = th.dataset.k; S.obSort = [k, S.obSort[0] === k ? -S.obSort[1] : (["name", "tier", "season", "team"].includes(k) ? 1 : -1)]; okcbosView(); });
   $("#view").querySelectorAll("#obtable tr[data-k2]").forEach((tr) => tr.onclick = () => { const k = tr.dataset.k2; S.obOpen.has(k) ? S.obOpen.delete(k) : S.obOpen.add(k); okcbosView(); });
 }
