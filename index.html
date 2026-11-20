@@ -68,6 +68,12 @@ tr+tr td{border-top:1px solid #EDF1F1}
 .card{background:var(--sheet);border-radius:var(--r);box-shadow:0 0 0 1px var(--rule);padding:16px;margin-bottom:14px}
 .card h2{margin:0 0 4px;font-size:18px}
 .card .sub{color:var(--soft);font-size:13px;margin:0 0 10px}
+.minctl{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:0 0 14px;padding:10px 12px;border-radius:10px;background:var(--sheet);box-shadow:0 0 0 1px var(--rule)}
+.minctl input[type=range]{flex:1 1 220px;accent-color:var(--ink)}
+.minctl input[type=number]{width:70px;border:1.5px solid var(--rule);background:var(--sheet);border-radius:8px;padding:5px 7px}
+.minctl table{flex:1 1 100%}
+.minctl td.curc{font-weight:700;background:#EEF2F1}
+.tag.mov{background:#16212B;color:#fff}
 .obnotes{margin:0 0 14px;padding:12px;border-radius:10px;background:#FAFCFB;box-shadow:0 0 0 1px var(--rule)}
 .obnotes label{display:block;margin:0 0 6px}
 .obnotes textarea{display:block;width:100%;box-sizing:border-box;min-height:96px;resize:vertical;border:1.5px solid var(--rule);background:var(--sheet);border-radius:8px;padding:8px 10px;font:inherit;line-height:1.4}
@@ -149,7 +155,7 @@ const REPO = "addrosen/nba-board-v.3";
 const TOKEN_KEY = "nba3-gh-token";
 const S = { tab: "board", mode: "cs", sort: "exp", game: "all", q: "", date: null, b: null, results: null,
             calls: {}, callsSha: null, open: new Set(), defSort: ["cdef", -1], showUnlikely: false,
-            teams: null, tdef: null, team: null, topp: "all", b5: "cx", topen: new Set(), tsort: null, ddef: null, doff: null, dsort: null, dopen: new Set(), obTeam: "all", obMin: {}, ob: null, obDef: "both", obSeason: "both", obTier: "all", obSort: ["cs_a", -1], obOpen: new Set(), obNotes: {}, obNotesSha: null, obNotesLoaded: false, obNoteMsg: "" };
+            teams: null, tdef: null, team: null, topp: "all", b5: "cx", topen: new Set(), tsort: null, ddef: null, doff: null, dsort: null, dopen: new Set(), obTeam: "all", obMin: {}, ob: null, obDef: "both", obSeason: "both", obTier: "all", obSort: ["cs_a", -1], obOpen: new Set(), obNotes: {}, obNotesSha: null, obNotesLoaded: false, obNoteMsg: "", minOv: {} };
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const pct = (x, d = 0) => (x == null || isNaN(x)) ? "–" : (100 * x).toFixed(d) + "%";
@@ -224,16 +230,42 @@ function rowsNow() {
         const d = r.dm[`${pid}:${c.call === "out" ? "out" : "in"}`]; if (d) min += d;
       }
     }
+    r.min0 = min;                                                       // projection after calls, before your minutes
+    if (S.minOv[r.pid] != null) { min = S.minOv[r.pid]; r.minset = true; }
     if (Math.abs(min - r.min) > 1e-9) {
+      const k = r0.min > 0 ? Math.max(0, min) / r0.min : 0;
+      r.c3a = r0.c3a * k; r.atba = r0.atba * k; r.ota = r0.ota * k; r.c3a0 = r0.c3a0 * k; r.atba0 = r0.atba0 * k;
       r.min = Math.max(0, min);
       r.exp_cs = cal(r.min * r.cs_pm, "cs"); r.exp_3 = cal(r.min * (r.cs_pm + r.ot_pm), "total");
       r.p_cs = [1, 2, 3, 4].map((k) => pAtLeast(r.exp_cs, k)); r.p_3 = [1, 2, 3, 4].map((k) => pAtLeast(r.exp_3, k));
-      r.shifted = true;
+      r.shifted = !r.minset;
     }
     r.E = S.mode === "cs" ? r.exp_cs : r.exp_3; r.N = S.mode === "cs" ? r.n_cs : r.n_3;
     r.P = S.mode === "cs" ? r.p_cs : r.p_3; r.vs = r.N > 0 ? r.E / r.N - 1 : 0;
     return r;
   });
+}
+
+// minutes adjuster: your own minutes for a player, kept on this device for that night
+const minKey = () => `nba3-minov-${S.date}`;
+function loadMinOv() { try { S.minOv = JSON.parse(localStorage.getItem(minKey()) || "{}"); } catch (e) { S.minOv = {}; } }
+function keepMinOv() { try { Object.keys(S.minOv).length ? localStorage.setItem(minKey(), JSON.stringify(S.minOv)) : localStorage.removeItem(minKey()); } catch (e) {} }
+function atMinutes(r, m) {
+  const e_cs = cal(m * r.cs_pm, "cs"), e_3 = cal(m * (r.cs_pm + r.ot_pm), "total"), E = S.mode === "cs" ? e_cs : e_3;
+  return { m, E, P: [1, 2, 3, 4].map((k) => pAtLeast(E, k)) };
+}
+function minCtl(r) {
+  const what = S.mode === "cs" ? "C&amp;S makes" : "threes", cc = chanceCols();
+  const steps = [...new Set([-8, -4, 0, 4, 8].map((d) => Math.round(Math.min(48, Math.max(0, r.min + d)) * 2) / 2))];
+  return `<div class="minctl" data-pid="${r.pid}"><b>Minutes</b>
+    <input type="range" min="0" max="48" step="0.5" value="${r.min}" aria-label="Minutes for ${esc(r.name)}">
+    <input type="number" min="0" max="48" step="0.5" inputmode="decimal" value="${f1(r.min)}" aria-label="Minutes">
+    <span class="meta">projected ${f1(r.min0)}${Math.abs(r.min0 - r.nmin) > 0.05 ? ` · normal ${f1(r.nmin)}` : ""} · season ${f1(r.s_min)}</span>
+    ${r.minset ? `<button class="btn" data-reset="${r.pid}">Back to ${f1(r.min0)}</button>` : ""}
+    <table><tr><th>if he plays</th>${steps.map((m) => `<th class="num">${f1(m)} min</th>`).join("")}</tr>
+      <tr><td>exp ${what}</td>${steps.map((m) => `<td class="num${Math.abs(m - r.min) < 0.01 ? " curc" : ""}">${f2(atMinutes(r, m).E)}</td>`).join("")}</tr>
+      ${cc.map(([i, l]) => `<tr><td>chance of ${l}</td>${steps.map((m) => `<td class="num${Math.abs(m - r.min) < 0.01 ? " curc" : ""}">${pct(atMinutes(r, m).P[i])}</td>`).join("")}</tr>`).join("")}
+    </table></div>`;
 }
 
 /* ---------------- views ---------------- */
@@ -279,30 +311,60 @@ function renderList() {
   const maxE = Math.max(...allR.map((r) => r.E), 1);
   const cc = chanceCols();
   const what = S.mode === "cs" ? "C&S makes" : "threes";
-  $("#view").innerHTML = rows.length ? `<div class="list">${rows.map((r) => {
-    const tags = (r.locked ? `<span class="tag lock">locked</span>` : "") +
-      (r.call ? `<span class="tag ${r.call === "out" ? "out" : "in"}">${r.call === "out" ? "called out" : "called in"}</span>` :
-       r.status ? `<span class="tag ${r.status === "out" ? "out" : ""}">${esc(r.status)}${r.p_play < 0.97 ? " " + pct(r.p_play) : ""}</span>` :
-       r.p_play < 0.97 ? `<span class="tag">plays ${pct(r.p_play)}</span>` : "");
-    const cls = r.vs > 0.03 ? "up" : r.vs < -0.03 ? "dn" : "flat";
-    return `<div><button class="row" data-pid="${r.pid}" aria-expanded="${S.open.has(r.pid)}">
-      <span class="rk num">${rank.get(r.pid) ?? ""}</span>
-      <span class="who"><b>${esc(r.name)}${tags}</b><span>${esc(r.team)} ${r.home ? "vs" : "@"} ${esc(r.opp)} · ${esc(tipLocal(r))}</span></span>
-      <span class="mins num">${f1(r.min)}<span>min${r.shifted ? " *" : ""}</span></span>
-      <span class="exp num">${f2(r.E)}<span>exp ${what}</span><span class="vsm ${cls}">${sgn(r.vs)} vs normal</span><div class="bar"><i style="width:${Math.min(100, 100 * r.E / maxE)}%"></i></div></span>
-      <span class="chg num ${cls}">${sgn(r.vs)}<span>vs normal ${f2(r.N)}</span></span>
-      <span class="ch num">${cc.map(([i, l]) => `<em>${pct(r.P[i])}</em> <small>${l}</small>`).join("<br>")}</span>
-    </button><div class="detail ${S.open.has(r.pid) ? "open" : ""}" id="d${r.pid}">${S.open.has(r.pid) ? detail(r) : ""}</div></div>`;
-  }).join("")}</div>
-  <p class="meta" style="margin-top:10px">Only players averaging ${BOARD_MIN}+ minutes this season are shown. Expected makes assume he plays. Corner and above-the-break C&amp;S attempts move with the opponent's corner/ATB factor; other threes (pull-ups) don't depend on the defense. * minutes moved by a call made on this page, not yet built in at home.</p>`
+  S.rowCtx = { rank, maxE };
+  $("#view").innerHTML = rows.length ? `<div class="list">${rows.map((r) => `<div><button class="row" data-pid="${r.pid}" aria-expanded="${S.open.has(r.pid)}">${rowInner(r)}</button><div class="detail ${S.open.has(r.pid) ? "open" : ""}" id="d${r.pid}">${S.open.has(r.pid) ? detail(r) : ""}</div></div>`).join("")}</div>
+  <p class="meta" style="margin-top:10px">Only players averaging ${BOARD_MIN}+ minutes this season are shown. Expected makes assume he plays. Corner and above-the-break C&amp;S attempts move with the opponent's corner/ATB factor; other threes (pull-ups) don't depend on the defense. * minutes moved by a call made on this page, not yet built in at home. <b>your min</b> = minutes you set with the adjuster (open a player); kept on this device for tonight.</p>`
   : `<div class="list"><div class="empty">No players match.</div></div>`;
   $("#view").querySelectorAll(".row").forEach((el) => el.onclick = () => {
     const pid = Number(el.dataset.pid);
     S.open.has(pid) ? S.open.delete(pid) : S.open.add(pid); renderList();
   });
+  bindMinCtl();
 }
 
-function detail(r) {
+function rowInner(r) {
+  const { rank, maxE } = S.rowCtx, cc = chanceCols(), what = S.mode === "cs" ? "C&S makes" : "threes";
+  {
+    const tags = (r.minset ? `<span class="tag mov">your min</span>` : "") + (r.locked ? `<span class="tag lock">locked</span>` : "") +
+      (r.call ? `<span class="tag ${r.call === "out" ? "out" : "in"}">${r.call === "out" ? "called out" : "called in"}</span>` :
+       r.status ? `<span class="tag ${r.status === "out" ? "out" : ""}">${esc(r.status)}${r.p_play < 0.97 ? " " + pct(r.p_play) : ""}</span>` :
+       r.p_play < 0.97 ? `<span class="tag">plays ${pct(r.p_play)}</span>` : "");
+    const cls = r.vs > 0.03 ? "up" : r.vs < -0.03 ? "dn" : "flat";
+    return `<span class="rk num">${rank.get(r.pid) ?? ""}</span>
+      <span class="who"><b>${esc(r.name)}${tags}</b><span>${esc(r.team)} ${r.home ? "vs" : "@"} ${esc(r.opp)} · ${esc(tipLocal(r))}</span></span>
+      <span class="mins num">${f1(r.min)}<span>min${r.shifted ? " *" : ""}</span></span>
+      <span class="exp num">${f2(r.E)}<span>exp ${what}</span><span class="vsm ${cls}">${sgn(r.vs)} vs normal</span><div class="bar"><i style="width:${Math.min(100, 100 * r.E / maxE)}%"></i></div></span>
+      <span class="chg num ${cls}">${sgn(r.vs)}<span>vs normal ${f2(r.N)}</span></span>
+      <span class="ch num">${cc.map(([i, l]) => `<em>${pct(r.P[i])}</em> <small>${l}</small>`).join("<br>")}</span>`;
+  }
+}
+
+function bindMinCtl() {
+  $("#view").querySelectorAll(".minctl").forEach((box) => {
+    const pid = Number(box.dataset.pid), [rng, num] = box.querySelectorAll("input");
+    box.onclick = (e) => e.stopPropagation();
+    const set = (v, commit) => {
+      v = Math.round(Math.min(48, Math.max(0, Number(v))) * 2) / 2; if (isNaN(v)) return;
+      const r0 = rowsNow().find((x) => x.pid === pid);
+      if (r0 && Math.abs(v - r0.min0) < 0.01) delete S.minOv[pid]; else S.minOv[pid] = v;
+      keepMinOv();
+      if (commit) { renderList(); const row = $(`.row[data-pid="${pid}"]`); if (row) row.scrollIntoView({ block: "nearest" }); return; }
+      const r = rowsNow().find((x) => x.pid === pid); if (!r) return;      // live update of this row only
+      rng.value = v; num.value = f1(v);
+      const btn = $(`.row[data-pid="${pid}"]`); if (btn) btn.innerHTML = rowInner(r);
+      const body = $(`#d${pid} .dbody`); if (body) body.innerHTML = detailBody(r);
+      const tbl = box.querySelector("table"); if (tbl) tbl.outerHTML = minCtl(r).match(/<table>[\s\S]*<\/table>/)[0];
+    };
+    rng.oninput = () => set(rng.value, false);
+    rng.onchange = () => set(rng.value, true);
+    num.onchange = () => set(num.value, true);
+    num.onkeydown = (e) => { if (e.key === "Enter") set(num.value, true); };
+    const rb = box.querySelector("[data-reset]"); if (rb) rb.onclick = () => { delete S.minOv[pid]; keepMinOv(); renderList(); };
+  });
+}
+
+function detail(r) { return minCtl(r) + `<div class="dbody">${detailBody(r)}</div>`; }
+function detailBody(r) {
   const t = S.b.teams[r.team] || { players: [] };
   const others = t.players.filter((p) => p.pid !== r.pid && (p.status || p.p < 0.97) && p.normal >= 8);
   const minEff = r.nmin > 0 ? r.min / r.nmin - 1 : 0, matchEff = r.matchup - 1;
@@ -312,7 +374,7 @@ function detail(r) {
     .sort((a, b) => Math.abs(b.v) - Math.abs(a.v)).slice(0, 4);
   return `<div class="dgrid">
     <div><h3>Why ${sgn(r.vs)} vs normal</h3>
-      <table><tr><td>Minutes</td><td class="num">${f1(r.nmin)} → ${f1(r.min)}</td><td class="num ${minEff > 0.02 ? "up" : minEff < -0.02 ? "dn" : ""}">${sgn(minEff)}</td></tr>
+      <table><tr><td>Minutes${r.minset ? " (yours)" : ""}</td><td class="num">${f1(r.nmin)} → ${f1(r.min)}</td><td class="num ${minEff > 0.02 ? "up" : minEff < -0.02 ? "dn" : ""}">${sgn(minEff)}</td></tr>
       <tr><td>C&amp;S matchup</td><td class="num">corner ×${f2(r.cdef)}, ATB ×${f2(r.adef)}</td><td class="num ${matchEff > 0.02 ? "up" : matchEff < -0.02 ? "dn" : ""}">${sgn(matchEff)}</td></tr></table>
       <p style="margin-top:6px">${esc(r.opp)} ranks ${crank} of 30 in corner C&amp;S allowed (1 = most) and ${arank} above the break, measured against the shooters each defense faced.</p>
       ${others.length ? `<p><b>${esc(r.team)} injuries:</b> ${others.map((p) => `${esc(p.name)} (${p.call ? "called " + p.call : esc(p.status || "coach's call")}${p.call ? "" : ", plays " + pct(p.p)})`).join(", ")}</p>` : ""}
@@ -841,10 +903,11 @@ document.querySelectorAll(".tabs button").forEach((b) => b.onclick = () => { S.t
 document.querySelectorAll("#mode button").forEach((b) => b.onclick = () => { S.mode = b.dataset.mode; try { localStorage.setItem("nba3-mode", S.mode); } catch (e) {} if (S.sort === "p4" && S.mode === "cs") S.sort = "p3"; render(); });
 
 async function loadDate(date) {
-  S.date = date; S.open.clear();
+  if (date !== S.date) S.open.clear();   // the 5-minute refresh keeps open players (and their minutes adjusters) open
+  S.date = date;
   try { S.b = await getJSON(date ? `data/board-${date}.json` : "data/board.json"); S.date = S.b.date; }
   catch (e) { $("#view").innerHTML = `<div class="list"><div class="empty">No board for that night.</div></div>`; return; }
-  await loadCalls(S.date); render();
+  loadMinOv(); await loadCalls(S.date); render();
 }
 (async function init() {
   try { const m = localStorage.getItem("nba3-mode"); if (m) S.mode = m; } catch (e) {}
