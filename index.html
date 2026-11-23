@@ -106,6 +106,8 @@ table.nowrap td,table.nowrap th{white-space:nowrap}
 .tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:6px}
 .tchip{border:1.5px solid var(--rule);background:var(--sheet);border-radius:8px;padding:6px 0 5px;font-weight:700;cursor:pointer;line-height:1.2}
 .tchip small{color:var(--faint);font-weight:700;font-size:11px}
+.tchip .pen{font-size:11px;margin-left:2px;color:var(--soft)}
+.tchip.on .pen{color:#D5DDDF}
 .tchip em{display:block;font-style:normal;font-weight:500;font-size:11px;color:var(--soft);font-variant-numeric:tabular-nums}
 .tchip.b5{background:var(--miss-wash)}
 .tchip.on small,.tchip.on em{color:#D5DDDF}
@@ -155,7 +157,7 @@ const REPO = "addrosen/nba-board-v.3";
 const TOKEN_KEY = "nba3-gh-token";
 const S = { tab: "board", mode: "cs", sort: "exp", game: "all", q: "", date: null, b: null, results: null,
             calls: {}, callsSha: null, open: new Set(), defSort: ["cdef", -1], showUnlikely: false,
-            teams: null, tdef: null, team: null, topp: "all", b5: "cx", topen: new Set(), tsort: null, ddef: null, doff: null, dsort: null, dopen: new Set(), obTeam: "all", obMin: {}, ob: null, obDef: "both", obSeason: "both", obTier: "all", obSort: ["cs_a", -1], obOpen: new Set(), obNotes: {}, obNotesSha: null, obNotesLoaded: false, obNoteMsg: "", minOv: {} };
+            teams: null, tdef: null, team: null, topp: "all", b5: "cx", topen: new Set(), tsort: null, ddef: null, doff: null, dsort: null, dopen: new Set(), obTeam: "all", obMin: {}, ob: null, obDef: "both", obSeason: "both", obTier: "all", obSort: ["cs_a", -1], obOpen: new Set(), minOv: {} };
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const pct = (x, d = 0) => (x == null || isNaN(x)) ? "–" : (100 * x).toFixed(d) + "%";
@@ -622,6 +624,9 @@ function resultsView() {
 
 /* ---------- Teams: tap a defense, pick the team playing it, see that team's players vs bottom-5 C&S defenses ---------- */
 async function teamsView() {
+  const keep = noteFocus();
+  ensureNotes("teams", () => { if (S.tab === "teams") teamsView(); });
+  const tnote = (t, role) => noteBox("teams", t, `Notes on ${t}`, "your notes on this team, kept across nights", `Anything worth remembering about ${t}${role}…`);
   if (!S.teams) {
     $("#view").innerHTML = `<div class="list"><div class="empty">Loading…</div></div>`;
     try { S.teams = await getJSON("data/teams.json"); } catch (e) { $("#view").innerHTML = `<div class="list"><div class="empty">No team data yet.</div></div>`; return; }
@@ -638,7 +643,7 @@ async function teamsView() {
   const info = Object.fromEntries(curAll.map((x) => [x.team, x]));
   const grid = `<div class="card"><h2>Defenses</h2><p class="sub">Worst C&amp;S defense first, by ${st === "cx" ? "the composite" : esc(T.stats[st])} over each team's last ${T.window} games. Bottom 5 shaded; tonight's teams outlined. Tap a defense, then pick the team playing it.</p><div class="tgrid">${order.map((t) => {
     const x = info[t];
-    return `<button class="tchip ${t === S.tdef ? "on" : ""} ${slate.includes(t) ? "tn" : ""} ${x && x.rank <= B ? "b5" : ""}" data-t="${t}"><small>${x ? x.rank : "–"}</small> ${t}<em>${x ? fmtV(x.val) : ""}</em></button>`;
+    return `<button class="tchip ${t === S.tdef ? "on" : ""} ${slate.includes(t) ? "tn" : ""} ${x && x.rank <= B ? "b5" : ""}" data-t="${t}"><small>${x ? x.rank : "–"}</small> ${t}${hasNote("teams", t) ? `<span class="pen" title="has notes">✎</span>` : ""}<em>${x ? fmtV(x.val) : ""}</em></button>`;
   }).join("")}</div></div>`;
   const bindGrid = () => document.querySelectorAll(".tchip").forEach((b) => b.onclick = () => {
     S.tdef = b.dataset.t; S.team = tonight[S.tdef] || null; S.topp = "all"; S.topen.clear(); teamsView();
@@ -649,9 +654,10 @@ async function teamsView() {
   const offOpts = all.filter((t) => t !== S.tdef);
   const picker = `<div class="card"><h2>${esc(S.tdef)} defense <span style="font-weight:500;color:var(--soft)">${d ? `· ranked ${d.rank} of ${curAll.length} (${fmtV(d.val)})` : ""}</span></h2>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px"><label class="meta" for="toff">Team playing ${esc(S.tdef)}:</label>
-      <select id="toff"><option value="">Pick a team…</option>${offOpts.map((t) => `<option value="${t}">${t}${tonight[S.tdef] === t ? " · tonight" : ""}</option>`).join("")}</select></div></div>`;
+      <select id="toff"><option value="">Pick a team…</option>${offOpts.map((t) => `<option value="${t}">${t}${tonight[S.tdef] === t ? " · tonight" : ""}${hasNote("teams", t) ? " ✎" : ""}</option>`).join("")}</select></div>
+    <div style="margin-top:12px">${tnote(S.tdef, "")}</div></div>`;
   const bindPicker = () => { const el = $("#toff"); el.value = S.team || ""; el.onchange = (e) => { S.team = e.target.value || null; S.topp = "all"; S.topen.clear(); teamsView(); }; };
-  if (!S.team) { $("#view").innerHTML = grid + picker; bindGrid(); bindPicker(); return; }
+  if (!S.team) { $("#view").innerHTML = grid + picker; bindGrid(); bindPicker(); bindNotes(() => teamsView(), keep); return; }
 
   const games = T.games.filter((g) => g.team === S.team);
   const isB5 = (g) => g.rank[st] != null && g.rank[st] <= B;
@@ -686,6 +692,7 @@ async function teamsView() {
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:6px 0 10px">
         <select id="topp" aria-label="Which bottom-5 opponents"><option value="all">All bottom-5 opponents (${vsAll.length} game${vsAll.length === 1 ? "" : "s"})</option>${opps.map((o) => { const n = vsAll.filter((g) => g.opp === o).length; return `<option value="${o}">only ${o} (${n} game${n > 1 ? "s" : ""})</option>`; }).join("")}</select>
         <span class="meta">${vsAll.length} of ${games.length} ${esc(S.team)} games came against a bottom-5 defense${vsAll.length ? "" : " so far"}.</span></div>
+      ${tnote(S.team, "")}
       ${vs.length ? `<div class="scroll"><table><tr><th>Date</th><th>Opponent</th><th>its rank then</th><th>${st === "fr" ? "share" : st === "cx" ? "score" : "per game"} then</th><th>team C&amp;S</th><th>team 3PM</th></tr>
         ${vs.map((g) => { const t = teamLine(g); return `<tr><td>${dlabel(g.d)}</td><td>${g.home ? "vs" : "@"} ${esc(g.opp)}</td><td class="num">${g.rank[st]}</td><td class="num">${fmtV(g.val[st])} <span class="meta">(${g.n} g)</span></td><td class="num">${t[0]}-${t[1]}</td><td class="num">${t[2]}-${t[3]}</td></tr>`; }).join("")}</table></div>` : ""}
     </div>
@@ -698,7 +705,7 @@ async function teamsView() {
         return `<tr data-tp="${v.pid}" style="cursor:pointer"><td><b>${esc(v.name)}</b> <span class="meta">${open ? "▾" : "▸"}</span></td>${COLS.slice(1).map(([k]) =>
           `<td class="num ${k === "diff" ? (v.diff > 0.25 ? "up" : v.diff < -0.25 ? "dn" : "") : ""}">${cell(v[k], k)}${k === "oth" && v.o ? ` <span class="meta">(${v.o.gp} g)</span>` : ""}</td>`).join("")}</tr>${log}`;
       }).join("")}</table></div></div>` : ""}`;
-  bindGrid(); bindPicker();
+  bindGrid(); bindPicker(); bindNotes(() => teamsView(), keep);
   $("#topp").value = S.topp; $("#topp").onchange = (e) => { S.topp = e.target.value; S.topen.clear(); teamsView(); };
   $("#view").querySelectorAll("table.sortable th[data-k]").forEach((th) => th.onclick = () => {
     const k = th.dataset.k; S.tsort = [k, S.tsort[0] === k ? -S.tsort[1] : (k === "name" ? 1 : -1)]; teamsView();
@@ -709,69 +716,96 @@ async function teamsView() {
 /* ---------- OKC/BOS: who the Thunder and Celtics let take C&S threes ---------- */
 const ordinal = (n) => n + (n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] || "th");
 const TIER_LABEL = { unreliable: "Unreliable", average: "Average", reliable: "Reliable", rare: "Rarely shoots" };
-/* team notes: kept on this device as you type, synced to the repo (edits/okcbos-notes.json) when signed in */
-const NOTES_PATH = "edits/okcbos-notes.json", NOTES_KEY = "nba3-okcbos-notes";
+/* notes: kept on this device as you type, synced to the repo (edits/<file>.json) when signed in.
+   One note per team in each set; OKC/BOS notes and Teams-tab notes are separate. */
+const NOTESETS = { okcbos: { path: "edits/okcbos-notes.json", key: "nba3-okcbos-notes", msg: "okc/bos notes" },
+                   teams:  { path: "edits/team-notes.json",   key: "nba3-team-notes",   msg: "team notes" } };
+const NS = Object.fromEntries(Object.keys(NOTESETS).map((k) => [k, { notes: {}, sha: null, loaded: false, msg: {}, last: null, timer: null, busy: false, again: false }]));
 const b64 = (s) => btoa(unescape(encodeURIComponent(s)));
 const unb64 = (s) => decodeURIComponent(escape(atob(s.replace(/\n/g, ""))));
 const newerNote = (a, b) => (a && (!b || (a.at || "") > (b.at || ""))) ? a : b;
 const mergeNotes = (...sets) => { const o = {}; for (const set of sets) for (const [k, v] of Object.entries(set || {})) o[k] = newerNote(v, o[k]); return o; };
-const hasNote = (t) => !!(S.obNotes[t] && S.obNotes[t].text && S.obNotes[t].text.trim());
-function localNotes() { try { return JSON.parse(localStorage.getItem(NOTES_KEY) || "{}"); } catch (e) { return {}; } }
-function keepNotesLocal() { try { localStorage.setItem(NOTES_KEY, JSON.stringify(S.obNotes)); } catch (e) {} }
-async function remoteNotes() {
+const hasNote = (set, t) => { const n = NS[set].notes[t]; return !!(n && n.text && n.text.trim()); };
+const noteId = (set, t) => `note-${set}-${t}`;
+function localNotes(set) { try { return JSON.parse(localStorage.getItem(NOTESETS[set].key) || "{}"); } catch (e) { return {}; } }
+function keepNotesLocal(set) { try { localStorage.setItem(NOTESETS[set].key, JSON.stringify(NS[set].notes)); } catch (e) {} }
+async function remoteNotes(set) {
   if (!token()) return null;
   try {
-    const r = await fetch(`https://api.github.com/repos/${REPO}/contents/${NOTES_PATH}?t=${Date.now()}`, { headers: { Authorization: `Bearer ${token()}`, Accept: "application/vnd.github+json" } });
+    const r = await fetch(`https://api.github.com/repos/${REPO}/contents/${NOTESETS[set].path}?t=${Date.now()}`, { headers: { Authorization: `Bearer ${token()}`, Accept: "application/vnd.github+json" } });
     if (r.ok) { const j = await r.json(); return { sha: j.sha, notes: JSON.parse(unb64(j.content)).notes || {} }; }
     if (r.status === 404) return { sha: null, notes: {} };
   } catch (e) {}
   return null;
 }
-async function loadObNotes() {
-  let pub = {}; try { pub = (await getJSON(NOTES_PATH)).notes || {}; } catch (e) {}
-  const rem = await remoteNotes(); if (rem) S.obNotesSha = rem.sha;
-  S.obNotes = mergeNotes(pub, rem && rem.notes, localNotes(), S.obNotes);
-  keepNotesLocal(); S.obNotesLoaded = true;
-  if (rem && Object.keys(S.obNotes).some((k) => JSON.stringify(S.obNotes[k]) !== JSON.stringify(rem.notes[k]))) syncNotes();   // edits made while signed out / offline
+const typingNote = () => !!(document.activeElement && document.activeElement.classList && document.activeElement.classList.contains("notearea"));
+// call at the top of a view: loads the set once, then re-draws the view (unless you're typing)
+function ensureNotes(set, redraw) {
+  const ns = NS[set]; if (ns.loaded) return; ns.loaded = true;
+  (async () => {
+    let pub = {}; try { pub = (await getJSON(NOTESETS[set].path)).notes || {}; } catch (e) {}
+    const rem = await remoteNotes(set); if (rem) ns.sha = rem.sha;
+    ns.notes = mergeNotes(pub, rem && rem.notes, localNotes(set), ns.notes);
+    keepNotesLocal(set);
+    if (rem && Object.keys(ns.notes).some((k) => JSON.stringify(ns.notes[k]) !== JSON.stringify(rem.notes[k]))) syncNotes(set);   // edits made while signed out / offline
+    if (!typingNote()) redraw();
+  })();
 }
-function noteStatus(msg) { S.obNoteMsg = msg; const el = $("#obnotestat"); if (el) el.textContent = msg; }
-let notesTimer = null, notesBusy = false, notesAgain = false;
-async function syncNotes() {
-  clearTimeout(notesTimer); notesTimer = null;
-  if (!token()) { noteStatus("Saved on this device. Sign in to sync it to your other devices."); return; }
-  if (notesBusy) { notesAgain = true; return; }
-  notesBusy = true; noteStatus("Saving…");
-  const put = () => fetch(`https://api.github.com/repos/${REPO}/contents/${NOTES_PATH}`, {
+function noteStatus(set, team, msg) { NS[set].msg[team] = msg; const el = document.getElementById(noteId(set, team) + "-stat"); if (el) el.textContent = msg; }
+async function syncNotes(set) {
+  const ns = NS[set], cfg = NOTESETS[set], team = ns.last;
+  clearTimeout(ns.timer); ns.timer = null;
+  if (!token()) { noteStatus(set, team, "Saved on this device. Sign in to sync it to your other devices."); return; }
+  if (ns.busy) { ns.again = true; return; }
+  ns.busy = true; noteStatus(set, team, "Saving…");
+  const put = () => fetch(`https://api.github.com/repos/${REPO}/contents/${cfg.path}`, {
     method: "PUT", headers: { Authorization: `Bearer ${token()}`, Accept: "application/vnd.github+json" },
-    body: JSON.stringify({ message: "okc/bos notes", content: b64(JSON.stringify({ notes: S.obNotes }, null, 1)), ...(S.obNotesSha ? { sha: S.obNotesSha } : {}) }) });
+    body: JSON.stringify({ message: cfg.msg, content: b64(JSON.stringify({ notes: ns.notes }, null, 1)), ...(ns.sha ? { sha: ns.sha } : {}) }) });
   let r = null;
   try {
     r = await put();
     if (r.status === 409 || r.status === 422) {          // changed on another device: merge, retry
-      const rem = await remoteNotes();
-      if (rem) { S.obNotesSha = rem.sha; S.obNotes = mergeNotes(rem.notes, S.obNotes); keepNotesLocal(); r = await put(); }
+      const rem = await remoteNotes(set);
+      if (rem) { ns.sha = rem.sha; ns.notes = mergeNotes(rem.notes, ns.notes); keepNotesLocal(set); r = await put(); }
     }
-    if (r.ok) S.obNotesSha = (await r.json()).content.sha;
+    if (r.ok) ns.sha = (await r.json()).content.sha;
   } catch (e) {}
-  notesBusy = false;
-  if (r && r.ok) noteStatus(`Saved and synced · ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`);
-  else noteStatus(r && (r.status === 401 || r.status === 403) ? "Saved on this device. GitHub didn't accept the token, so it isn't synced."
+  ns.busy = false;
+  if (r && r.ok) noteStatus(set, team, `Saved and synced · ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`);
+  else noteStatus(set, team, r && (r.status === 401 || r.status === 403) ? "Saved on this device. GitHub didn't accept the token, so it isn't synced."
                 : `Saved on this device. Couldn't sync${r ? ` (GitHub ${r.status})` : " (offline?)"}; it will retry next time you open this tab.`);
-  if (notesAgain) { notesAgain = false; syncNotes(); }
+  if (ns.again) { ns.again = false; syncNotes(set); }
 }
-function noteFor(team) {
-  const n = S.obNotes[team] || {};
+function noteBox(set, team, title, hint, placeholder) {
+  const n = NS[set].notes[team] || {}, id = noteId(set, team);
   const when = n.at ? new Date(n.at).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "";
-  const status = S.obNoteMsg || (when ? `Last edited ${when}` : "") + (token() ? "" : `${when ? " · " : ""}Saves on this device; sign in to sync across devices.`);
-  return `<div class="obnotes"><label for="obnote"><b>Notes on ${esc(team)}</b> <span class="meta">your notes, kept for this team across nights and seasons</span></label>
-    <textarea id="obnote" placeholder="Anything worth remembering about ${esc(team)} against OKC/BOS…">${esc(n.text || "")}</textarea>
-    <div class="foot"><span class="meta" id="obnotestat">${esc(status)}</span>${token() ? "" : `<button class="btn" id="obnotesignin">Sign in to sync</button>`}</div></div>`;
+  const status = NS[set].msg[team] || (when ? `Last edited ${when}` : "") + (token() ? "" : `${when ? " · " : ""}Saves on this device; sign in to sync across devices.`);
+  return `<div class="obnotes"><label for="${id}"><b>${esc(title)}</b> <span class="meta">${esc(hint)}</span></label>
+    <textarea class="notearea" id="${id}" data-set="${set}" data-team="${esc(team)}" placeholder="${esc(placeholder)}">${esc(n.text || "")}</textarea>
+    <div class="foot"><span class="meta" id="${id}-stat">${esc(status)}</span>${token() ? "" : `<button class="btn notesignin" data-set="${set}">Sign in to sync</button>`}</div></div>`;
+}
+// keep your cursor in a note when a view re-draws (5-minute refresh, sorting, etc.)
+function noteFocus() { const a = document.activeElement; return a && a.classList && a.classList.contains("notearea") ? [a.id, a.selectionStart, a.selectionEnd, a.scrollTop] : null; }
+function bindNotes(redraw, keep) {
+  $("#view").querySelectorAll("textarea.notearea").forEach((ta) => {
+    const set = ta.dataset.set, team = ta.dataset.team, ns = NS[set];
+    ta.onclick = (e) => e.stopPropagation();
+    ta.oninput = () => {
+      ns.notes[team] = { text: ta.value, at: new Date().toISOString() }; keepNotesLocal(set); ns.last = team;
+      noteStatus(set, team, token() ? "Saving…" : "Saved on this device. Sign in to sync it to your other devices.");
+      clearTimeout(ns.timer); ns.timer = setTimeout(() => syncNotes(set), 1500);
+    };
+    ta.onblur = () => { if (ns.timer) syncNotes(set); };
+    if (keep && keep[0] === ta.id) { ta.focus(); ta.setSelectionRange(keep[1], keep[2]); ta.scrollTop = keep[3]; }
+  });
+  $("#view").querySelectorAll(".notesignin").forEach((b) => b.onclick = () => {
+    signIn(); if (token()) { for (const k in NS) { NS[k].loaded = false; NS[k].msg = {}; } redraw(); }
+  });
 }
 
 async function okcbosView() {
-  const prevNote = document.activeElement && document.activeElement.id === "obnote" ? document.activeElement : null;   // keep the cursor through the 5-minute refresh
-  const noteSel = prevNote ? [prevNote.selectionStart, prevNote.selectionEnd, prevNote.scrollTop] : null;
-  if (!S.obNotesLoaded) { S.obNotesLoaded = true; loadObNotes().then(() => { if (S.tab === "okcbos" && !(document.activeElement && document.activeElement.id === "obnote")) okcbosView(); }); }
+  const keep = noteFocus();
+  ensureNotes("okcbos", () => { if (S.tab === "okcbos") okcbosView(); });
   if (!S.ob) {
     $("#view").innerHTML = `<div class="list"><div class="empty">Loading…</div></div>`;
     try { S.ob = await getJSON("data/okcbos.json"); } catch (e) { $("#view").innerHTML = `<div class="list"><div class="empty">No OKC/BOS data yet.</div></div>`; return; }
@@ -852,10 +886,10 @@ async function okcbosView() {
       </table></div></div>
       <div class="card"><h2>Shooters</h2>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 10px"><select id="obtier"><option value="all">All shooters</option>${O.tiers.map((t) => `<option value="${t}">${TIER_LABEL[t]} only</option>`).join("")}</select>
-        <select id="obteam"><option value="all">All teams</option>${obTeams.map((t) => `<option value="${t}">${t}${hasNote(t) ? " ✎" : ""}</option>`).join("")}</select>
+        <select id="obteam"><option value="all">All teams</option>${obTeams.map((t) => `<option value="${t}">${t}${hasNote("okcbos", t) ? " ✎" : ""}</option>`).join("")}</select>
         <span class="meta">Tap a column to sort, a player for his games. Type a minimum under any column (percent columns in %, e.g. 20 or -10).</span>
         ${nMin ? `<button class="btn" id="obclear">Clear ${nMin} minimum${nMin > 1 ? "s" : ""}</button>` : ""}<span class="meta">${shooters.length} shooters</span></div>
-      ${S.obTeam !== "all" ? noteFor(S.obTeam) : ""}
+      ${S.obTeam !== "all" ? noteBox("okcbos", S.obTeam, `Notes on ${S.obTeam}`, "your notes, kept for this team across nights and seasons", `Anything worth remembering about ${S.obTeam} against OKC/BOS…`) : ""}
       <div class="scroll"><table class="sortable nowrap" id="obtable"><tr>${COLS.map(([k, l]) => `<th data-k="${k}" ${k === "team" ? 'style="text-align:left"' : ""} ${k === sk ? `aria-sort="${sd2 < 0 ? "descending" : "ascending"}"` : ""}>${esc(l)}${k === sk ? (sd2 < 0 ? " ↓" : " ↑") : ""}</th>`).join("")}</tr>
       <tr class="minrow">${COLS.map(([k]) => TXT.includes(k) ? `<td>${k === "name" ? `<span class="meta">min ≥</span>` : ""}</td>`
         : `<td><input type="number" inputmode="decimal" step="any" class="minbox" data-k="${k}" value="${esc(S.obMin[k] ?? "")}" placeholder="${PCTCOL.has(k) ? "%" : "–"}" aria-label="Minimum ${esc(k)}"></td>`).join("")}</tr>
@@ -874,19 +908,8 @@ async function okcbosView() {
     el.onchange = () => { const k = el.dataset.k; if (el.value === "") delete S.obMin[k]; else S.obMin[k] = el.value; okcbosView().then(() => { const n = $(`#obtable .minbox[data-k="${k}"]`); }); };
   });
   if ($("#obclear")) $("#obclear").onclick = () => { S.obMin = {}; okcbosView(); };
-  if ($("#obteam")) { $("#obteam").value = S.obTeam; $("#obteam").onchange = (e) => { S.obTeam = e.target.value; S.obNoteMsg = ""; okcbosView(); }; }
-  const ta = $("#obnote");
-  if (ta) {
-    const team = S.obTeam;
-    ta.oninput = () => {
-      S.obNotes[team] = { text: ta.value, at: new Date().toISOString() }; keepNotesLocal();
-      noteStatus(token() ? "Saving…" : "Saved on this device. Sign in to sync it to your other devices.");
-      clearTimeout(notesTimer); notesTimer = setTimeout(syncNotes, 1500);
-    };
-    ta.onblur = () => { if (notesTimer) syncNotes(); };
-    if (noteSel) { ta.focus(); ta.setSelectionRange(noteSel[0], noteSel[1]); ta.scrollTop = noteSel[2]; }
-  }
-  if ($("#obnotesignin")) $("#obnotesignin").onclick = () => { signIn(); if (token()) { S.obNotesLoaded = false; S.obNoteMsg = ""; okcbosView(); } };
+  if ($("#obteam")) { $("#obteam").value = S.obTeam; $("#obteam").onchange = (e) => { S.obTeam = e.target.value; okcbosView(); }; }
+  bindNotes(() => okcbosView(), keep);
   $("#view").querySelectorAll("#obtable th[data-k]").forEach((th) => th.onclick = () => { const k = th.dataset.k; S.obSort = [k, S.obSort[0] === k ? -S.obSort[1] : (["name", "tier", "season", "team"].includes(k) ? 1 : -1)]; okcbosView(); });
   $("#view").querySelectorAll("#obtable tr[data-k2]").forEach((tr) => tr.onclick = () => { const k = tr.dataset.k2; S.obOpen.has(k) ? S.obOpen.delete(k) : S.obOpen.add(k); okcbosView(); });
 }
