@@ -187,8 +187,7 @@ tr.tt.hl>td:first-child{box-shadow:inset 5px 0 0 var(--tc)}
     <button role="tab" data-tab="board" aria-selected="true">Board</button>
     <button role="tab" data-tab="funnels" aria-selected="false">Funnels</button>
     <button role="tab" data-tab="defense" aria-selected="false">Corner Defense</button>
-    <button role="tab" data-tab="assisted" aria-selected="false">Assisted</button>
-    <button role="tab" data-tab="teams" aria-selected="false">Teams</button>
+    <button role="tab" data-tab="teams" aria-selected="false">Bottom 5</button>
     <button role="tab" data-tab="cards" aria-selected="false">Team Cards</button>
     <button role="tab" data-tab="okcbos" aria-selected="false">OKC/BOS</button>
     <button role="tab" data-tab="injuries" aria-selected="false">Injuries</button>
@@ -214,7 +213,7 @@ const TOKEN_KEY = "nba3-gh-token";
 const S = { tab: "board", mode: "cs", sort: "exp", game: "all", q: "", date: null, b: null, results: null,
             calls: {}, callsSha: null, open: new Set(), defSort: ["cdef", -1], showUnlikely: false,
             teams: null, tdef: null, team: null, topp: "all", b5: "cx", topen: new Set(), tsort: null, ddef: null, doff: null, dsort: null, dopen: new Set(), obTeam: "all", obMin: {}, ob: null, obDef: "both", obSeason: "both", obTier: "all", obSort: ["cs_a", -1], obOpen: new Set(), minOv: {},
-            form: null, ast: null, astWin: "l10", astUnit: "pg", astSort: ["ast3", -1], astDef: null, astOff: null, astPSort: ["ast3", -1], tc: null, tcDocs: {} };
+            form: null, tc: null, tcDocs: {} };
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const pct = (x, d = 0) => (x == null || isNaN(x)) ? "–" : (100 * x).toFixed(d) + "%";
@@ -1043,85 +1042,6 @@ function passerBlock(r) {
     <p style="margin-top:6px">"With / without" = his C&amp;S makes a game in games that passer played vs sat. Small samples swing a lot.</p></div>`;
 }
 
-/* ---------- Assisted tab: who gives up assisted threes ---------- */
-const AST_AREAS = [["lc", "L corner"], ["lw", "L wing"], ["top", "Top"], ["rw", "R wing"], ["rc", "R corner"]];
-async function assistedView() {
-  if (!S.ast) {
-    $("#view").innerHTML = `<div class="list"><div class="empty">Loading…</div></div>`;
-    try { S.ast = await getJSON("data/assisted.json"); } catch (e) { $("#view").innerHTML = `<div class="list"><div class="empty">No assisted-threes data yet.</div></div>`; return; }
-  }
-  const A = S.ast, win = S.astWin, p100 = S.astUnit === "p100", sfx = p100 ? "_100" : "";
-  $("#viewctl").innerHTML = `<div class="seg" id="astwin"><button data-v="l10" aria-pressed="${win === "l10"}">Last ${A.window}</button><button data-v="season" aria-pressed="${win === "season"}">Season</button></div>
-    <div class="seg" id="astunit"><button data-v="pg" aria-pressed="${!p100}">Per game</button><button data-v="p100" aria-pressed="${p100}">Per 100 poss</button></div>`;
-  document.querySelectorAll("#astwin button").forEach((b) => b.onclick = () => { S.astWin = b.dataset.v; assistedView(); });
-  document.querySelectorAll("#astunit button").forEach((b) => b.onclick = () => { S.astUnit = b.dataset.v; assistedView(); });
-  const D = A.defense[win], opp = tonightOpp();
-  const cols = [["ast3", "Ast 3PM", true], ["ast_pct", "Ast %", false], ["fg3m", "All 3PM", true], ["cs_m", "C&S 3PM", true],
-                ["atb", "Above break", true], ["cor", "Corners", true], ...AST_AREAS.map(([k, l]) => [k, l, true])];
-  const val = (x, k, u) => k === "ast_pct" ? x.ast_pct : x[k + (u ? sfx : "")];
-  const rank = {}, lg = {};
-  cols.forEach(([k, , u]) => {
-    const s = [...D].sort((a, b) => (val(b, k, u) ?? -1) - (val(a, k, u) ?? -1));
-    rank[k] = Object.fromEntries(s.map((x, i) => [x.team, i + 1]));
-    lg[k] = D.reduce((a, x) => a + (val(x, k, u) || 0), 0) / D.length;
-  });
-  const [sk, dir] = S.astSort, su = (cols.find((c) => c[0] === sk) || [, , true])[2];
-  const d = [...D].sort((a, b) => sk === "team" ? dir * a.team.localeCompare(b.team) : dir * ((val(a, sk, su) ?? -1e9) - (val(b, sk, su) ?? -1e9)));
-  const cellH = (x, k, u) => { const v = val(x, k, u), rk = rank[k][x.team]; const cls = rk <= 5 ? "hot" : rk >= 26 ? "cold" : "";
-    return `<td class="num">${k === "ast_pct" ? pct(v) : f1(v)}${cls ? ` <span class="pill ${cls}" title="rank ${rk} of 30">${rk}</span>` : ""}</td>`; };
-  const L = A.league;
-  const panel = S.astDef ? astPanel(S.astDef, D, rank, lg, sfx, opp) : "";
-  $("#view").innerHTML = `<p class="note">Assisted made threes each defense allowed${win === "l10" ? ` over its last ${A.window} games` : " this season"}, ${p100 ? "per 100 of the offense's possessions" : "per game"}.
-    Assists only exist on makes, so these are makes. NBA.com doesn't tag single shots as catch-and-shoot, so assisted makes stand in for C&amp;S makes: league-wide ${pct(L.ast3 / L.made3)} of made threes are assisted (${pct(L.corner_ast)} in the corners, ${pct(L.atb_ast)} above the break), and assisted makes run a bit higher than tracked C&amp;S makes (${L.ast3} vs ${L.tracked_cs_m}) because some come after a dribble. Green = top 5 (gives up the most), red = bottom 5. Areas are NBA.com's shot-chart labels. Tap a defense to see the team playing it.${A.missing_games.length ? ` ${A.missing_games.length} game(s) with incomplete play-by-play are left out.` : ""}</p>
-    ${panel}
-    <div class="card scroll"><table class="sortable nowrap" id="asttable"><tr><th data-k="team">Defense</th>${cols.map(([k, l]) => `<th data-k="${k}" ${k === sk ? `aria-sort="${dir < 0 ? "descending" : "ascending"}"` : ""}>${l}${k === sk ? (dir < 0 ? " ↓" : " ↑") : ""}</th>`).join("")}<th>GP</th></tr>
-    ${d.map((x) => `<tr class="${opp[x.team] ? "hl" : ""}" data-def="${x.team}" style="cursor:pointer"><td><span class="tdot" style="background:${tcol(x.team)[0]}"></span><b>${esc(x.team)}</b> <span class="meta">${S.astDef === x.team ? "▾" : "▸"}${opp[x.team] ? ` vs ${esc(opp[x.team])}` : ""}</span></td>
-      ${cols.map(([k, , u]) => cellH(x, k, u)).join("")}<td class="num mut">${x.gp}</td></tr>`).join("")}
-    <tr class="lgrow"><td>League avg</td>${cols.map(([k]) => `<td class="num">${k === "ast_pct" ? pct(lg[k]) : f1(lg[k])}</td>`).join("")}<td></td></tr></table></div>`;
-  $("#view").querySelectorAll("#asttable th[data-k]").forEach((th) => th.onclick = () => {
-    const c = th.dataset.k; S.astSort = [c, S.astSort[0] === c ? -S.astSort[1] : (c === "team" ? 1 : -1)]; assistedView(); });
-  $("#view").querySelectorAll("#asttable tr[data-def]").forEach((tr) => tr.onclick = () => {
-    const t = tr.dataset.def; S.astDef = S.astDef === t ? null : t; S.astOff = S.astDef ? (opp[S.astDef] || null) : null; S.astPSort = ["ast3", -1];
-    assistedView().then(() => { const el = $("#astpanel"); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); }); });
-  const sel = $("#astoff"); if (sel) { sel.value = S.astOff || ""; sel.onchange = (e) => { S.astOff = e.target.value || null; assistedView(); }; }
-  if ($("#astclose")) $("#astclose").onclick = () => { S.astDef = null; assistedView(); };
-  $("#view").querySelectorAll("#astp th[data-k]").forEach((th) => th.onclick = () => {
-    const c = th.dataset.k; S.astPSort = [c, S.astPSort[0] === c ? -S.astPSort[1] : (c === "name" ? 1 : -1)]; assistedView(); });
-}
-function astPanel(def, D, rank, lg, sfx, opp) {
-  const x = D.find((y) => y.team === def); if (!x) return "";
-  const areas = AST_AREAS.map(([k, l]) => {
-    const v = x[k + sfx], r = rank[k][def], rel = lg[k] > 0 ? v / lg[k] : 1;
-    return `<div class="abar"><span>${l}</span><i style="width:${Math.min(100, 50 * rel)}%;background:${rel >= 1.1 ? "var(--net)" : rel <= 0.9 ? "var(--miss)" : "var(--faint)"}"></i><b class="num">${f1(v)}</b><small>×${f2(rel)} · #${r}</small></div>`;
-  }).join("");
-  const offs = ALL_TEAMS.filter((t) => t !== def);
-  let players = "";
-  if (S.astOff) {
-    // per game everywhere here: a player's assisted makes by area, season
-    const P = Object.entries(S.ast.players).filter(([, p]) => p.team === S.astOff && p.s.gp >= 3).map(([pid, p]) => {
-      const tot = AST_AREAS.reduce((a, [k]) => a + p.s[k], 0);
-      const fit = tot > 0 ? AST_AREAS.reduce((a, [k]) => a + p.s[k] * (x[k] / Math.max(lgPg(k), 1e-9)), 0) / tot : null;
-      const f = formOf(Number(pid));
-      return { pid: Number(pid), name: p.name, gp: p.s.gp, ast3: p.s.ast3, csa: f ? f.s.csa : null, fit, ...Object.fromEntries(AST_AREAS.map(([k]) => [k, p.s[k]])) };
-    }).filter((p) => p.ast3 >= 0.2);
-    const [k, dir] = S.astPSort;
-    P.sort((a, b) => k === "name" ? dir * a.name.localeCompare(b.name) : dir * ((a[k] ?? -1e9) - (b[k] ?? -1e9)));
-    const th = [["name", "Player"], ["ast3", "Ast 3PM"], ...AST_AREAS, ["csa", "C&S 3PA"], ["fit", "Area fit"]];
-    players = `<h3 style="margin-top:14px">${esc(S.astOff)} players vs ${esc(def)}</h3>
-      <p class="sub">Each player's assisted made threes a game this season, by area. <b>Area fit</b> = how much more (above 1) or less this defense allows in the areas his assisted makes come from, ${S.astWin === "l10" ? `over its last ${S.ast.window}` : "this season"} (1.00 = league average).</p>
-      <div class="scroll"><table class="sortable nowrap" id="astp"><tr>${th.map(([c, l]) => `<th data-k="${c}" ${c === k ? `aria-sort="${dir < 0 ? "descending" : "ascending"}"` : ""}>${l}${c === k ? (dir < 0 ? " ↓" : " ↑") : ""}</th>`).join("")}</tr>
-      ${P.map((p) => `<tr><td>${esc(p.name)} <small class="mut">${p.gp} g</small>${formTags(p.pid)}</td><td class="num"><b>${f2(p.ast3)}</b></td>${AST_AREAS.map(([a]) => `<td class="num">${f2(p[a])}</td>`).join("")}<td class="num">${f1(p.csa)}</td><td class="num"><span class="pill ${p.fit >= 1.08 ? "hot" : p.fit <= 0.92 ? "cold" : ""}">${p.fit == null ? "–" : "×" + f2(p.fit)}</span></td></tr>`).join("") || `<tr><td colspan="9" class="mut">No players with assisted threes yet.</td></tr>`}</table></div>`;
-  }
-  return `<div class="card" id="astpanel" style="padding:0;overflow:hidden">${teamBand(def, `<div class="tbtop"><h2>${esc(TEAM_NAMES[def] || def)} defense</h2><button class="btn" id="astclose">Close</button></div>
-      <p class="tbmeta">${f1(x["ast3" + sfx])} assisted threes allowed${sfx ? " per 100" : " a game"} (#${rank.ast3[def]} of 30) · ${pct(x.ast_pct)} of threes allowed were assisted (#${rank.ast_pct[def]})</p>`)}
-    <div style="padding:14px 16px">
-      <h3>By area, against league average</h3><div class="abars">${areas}</div>
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px"><label class="meta" for="astoff" style="margin:0">Team playing ${esc(def)}:</label>
-      <select id="astoff"><option value="">Pick a team…</option>${offs.map((t) => `<option value="${t}">${t}${opp[def] === t ? " · tonight" : ""}</option>`).join("")}</select></div>
-      ${players}</div></div>`;
-}
-function lgPg(k) { const D = S.ast.defense[S.astWin]; return D.reduce((a, x) => a + (x[k] || 0), 0) / D.length; }
-
 /* ---------- Team Cards: who takes the threes, game by game, and how it shifts when someone sits ---------- */
 const TC_STATS = [
   ["min", "MIN", "Minutes"], ["usg", "USG%", "Usage % (share of team plays on the floor ending in his shot, FT trip or turnover)"],
@@ -1334,7 +1254,7 @@ function render() {
   renderMeta();
   document.querySelectorAll(".tabs button").forEach((b) => b.setAttribute("aria-selected", b.dataset.tab === S.tab));
   document.querySelectorAll("#mode button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.mode === S.mode));
-  ({ board: boardView, funnels: funnelsView, defense: defenseView, assisted: assistedView, teams: teamsView, cards: cardsView, okcbos: okcbosView, injuries: injuriesView, results: resultsView })[S.tab]();
+  (({ board: boardView, funnels: funnelsView, defense: defenseView, teams: teamsView, cards: cardsView, okcbos: okcbosView, injuries: injuriesView, results: resultsView })[S.tab] || boardView)();
 }
 document.querySelectorAll(".tabs button").forEach((b) => b.onclick = () => { S.tab = b.dataset.tab; location.hash = S.tab; render(); });
 document.querySelectorAll("#mode button").forEach((b) => b.onclick = () => { S.mode = b.dataset.mode; try { localStorage.setItem("nba3-mode", S.mode); } catch (e) {} if (S.sort === "p4" && S.mode === "cs") S.sort = "p3"; render(); });
