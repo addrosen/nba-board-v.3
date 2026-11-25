@@ -123,6 +123,47 @@ table.nowrap td,table.nowrap th{white-space:nowrap}
   .inj-row{grid-template-columns:1fr 90px;}
   .inj-row .acts{grid-column:1/-1;justify-content:flex-start}
 }
+.mut{color:var(--faint)} .warnc{color:var(--warn-ink)}
+small.up,small.dn,small.mut,small.warnc{font-weight:600}
+.glog{font-size:12px;line-height:1.7} .glog b{color:var(--ink)}
+.tdot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:0}
+.lgrow td{font-weight:700;background:#F2F5F5}
+.tband{position:relative;overflow:hidden;background:var(--tc);color:#fff;border-radius:var(--r);padding:16px 16px 14px;margin-bottom:14px;border-bottom:6px solid var(--ts)}
+.card .tband{border-radius:0;margin:0}
+.twm{position:absolute;right:-6px;top:-18px;font-weight:800;font-size:110px;line-height:1;opacity:.12;font-variation-settings:"wdth" 64;pointer-events:none}
+.tbtop{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;position:relative}
+.tbtop h2{margin:0;font-size:26px;font-weight:800;font-variation-settings:"wdth" 70}
+.tband select{background:rgba(255,255,255,.95);color:var(--ink);border:0}
+.tband .btn{background:rgba(255,255,255,.95);border-color:transparent;color:var(--ink)}
+.tbmeta{margin:6px 0 0;font-size:13px;opacity:.9;position:relative}
+.tbpills{display:flex;flex-wrap:wrap;gap:5px;margin-top:12px;position:relative}
+.tbpills button{border:1.5px solid rgba(255,255,255,.55);background:transparent;color:#fff;border-radius:999px;padding:3px 10px;font-size:12px;font-weight:700;cursor:pointer}
+.tbpills button[aria-pressed=true]{background:#fff;color:var(--tc);border-color:#fff}
+.tbshare-t{margin:12px 0 5px;font-size:12px;font-weight:600;opacity:.9;position:relative}
+.tbbar{display:flex;height:22px;border-radius:5px;overflow:hidden;background:rgba(255,255,255,.15);position:relative}
+.tbbar span{background:rgba(255,255,255,var(--a));color:var(--tc);font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;border-right:1px solid var(--tc);min-width:0;overflow:hidden}
+.tbleg{list-style:none;padding:0;margin:7px 0 0;display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;position:relative}
+.tbleg i{display:inline-block;width:9px;height:9px;border-radius:2px;background:rgba(255,255,255,var(--a));margin-right:4px}
+.pchips{display:flex;flex-wrap:wrap;gap:6px}
+.pchip{border:1.5px solid var(--rule);background:var(--sheet);border-radius:8px;padding:5px 9px;cursor:pointer;font-weight:700;font-size:13px;text-align:left;line-height:1.25}
+.pchip small{display:block;font-weight:500;font-size:11px;color:var(--soft)}
+.pchip[data-st=out]{background:var(--miss-wash);border-color:var(--miss);color:var(--miss)}
+.pchip[data-st=in]{background:var(--net-wash);border-color:var(--net);color:var(--net)}
+.tctable td,.tctable th{white-space:nowrap}
+.tctable .pl{text-align:left;position:sticky;left:0;background:var(--sheet);z-index:1}
+.tctable .pl small{display:block;color:var(--faint);font-size:11px}
+.tctable .rk{color:var(--faint);font-weight:700;width:20px}
+.tctable td.tch{background:linear-gradient(90deg,rgba(14,122,104,.0),rgba(14,122,104,.0));background:color-mix(in srgb,var(--net) var(--h),transparent)}
+.tctable td.top{font-weight:800}
+.tctable td small{display:block;font-size:11px}
+.tctable th.tcsel,.tctable td.tcsel{outline:2px solid var(--ink);outline-offset:-2px}
+.sortb{border:0;background:none;padding:0;font-weight:600;color:inherit;cursor:pointer;font-size:12px}
+.tcsit{border-top:1px solid var(--rule);padding:10px 0}
+.tcsit-h{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:4px}
+.abars{display:grid;gap:6px;max-width:520px}
+.abar{display:grid;grid-template-columns:70px 1fr 42px 90px;gap:8px;align-items:center;font-size:13px}
+.abar i{display:block;height:10px;border-radius:3px}
+.abar small{color:var(--soft)}
 </style>
 </head>
 <body>
@@ -133,7 +174,9 @@ table.nowrap td,table.nowrap th{white-space:nowrap}
     <button role="tab" data-tab="board" aria-selected="true">Board</button>
     <button role="tab" data-tab="funnels" aria-selected="false">Funnels</button>
     <button role="tab" data-tab="defense" aria-selected="false">Corner Defense</button>
+    <button role="tab" data-tab="assisted" aria-selected="false">Assisted</button>
     <button role="tab" data-tab="teams" aria-selected="false">Teams</button>
+    <button role="tab" data-tab="cards" aria-selected="false">Team Cards</button>
     <button role="tab" data-tab="okcbos" aria-selected="false">OKC/BOS</button>
     <button role="tab" data-tab="injuries" aria-selected="false">Injuries</button>
     <button role="tab" data-tab="results" aria-selected="false">Results</button>
@@ -157,7 +200,8 @@ const REPO = "addrosen/nba-board-v.3";
 const TOKEN_KEY = "nba3-gh-token";
 const S = { tab: "board", mode: "cs", sort: "exp", game: "all", q: "", date: null, b: null, results: null,
             calls: {}, callsSha: null, open: new Set(), defSort: ["cdef", -1], showUnlikely: false,
-            teams: null, tdef: null, team: null, topp: "all", b5: "cx", topen: new Set(), tsort: null, ddef: null, doff: null, dsort: null, dopen: new Set(), obTeam: "all", obMin: {}, ob: null, obDef: "both", obSeason: "both", obTier: "all", obSort: ["cs_a", -1], obOpen: new Set(), minOv: {} };
+            teams: null, tdef: null, team: null, topp: "all", b5: "cx", topen: new Set(), tsort: null, ddef: null, doff: null, dsort: null, dopen: new Set(), obTeam: "all", obMin: {}, ob: null, obDef: "both", obSeason: "both", obTier: "all", obSort: ["cs_a", -1], obOpen: new Set(), minOv: {},
+            form: null, ast: null, astWin: "l10", astUnit: "pg", astSort: ["ast3", -1], astDef: null, astOff: null, astPSort: ["ast3", -1], tc: null, tcDocs: {} };
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const pct = (x, d = 0) => (x == null || isNaN(x)) ? "–" : (100 * x).toFixed(d) + "%";
@@ -333,7 +377,7 @@ function rowInner(r) {
        r.p_play < 0.97 ? `<span class="tag">plays ${pct(r.p_play)}</span>` : "");
     const cls = r.vs > 0.03 ? "up" : r.vs < -0.03 ? "dn" : "flat";
     return `<span class="rk num">${rank.get(r.pid) ?? ""}</span>
-      <span class="who"><b>${esc(r.name)}${tags}</b><span>${esc(r.team)} ${r.home ? "vs" : "@"} ${esc(r.opp)} · ${esc(tipLocal(r))}</span></span>
+      <span class="who"><b>${esc(r.name)}${tags}${formTags(r.pid)}</b><span>${esc(r.team)} ${r.home ? "vs" : "@"} ${esc(r.opp)} · ${esc(tipLocal(r))}</span></span>
       <span class="mins num">${f1(r.min)}<span>min${r.shifted ? " *" : ""}</span></span>
       <span class="exp num">${f2(r.E)}<span>exp ${what}</span><span class="vsm ${cls}">${sgn(r.vs)} vs normal</span><div class="bar"><i style="width:${Math.min(100, 100 * r.E / maxE)}%"></i></div></span>
       <span class="chg num ${cls}">${sgn(r.vs)}<span>vs normal ${f2(r.N)}</span></span>
@@ -396,14 +440,7 @@ function detailBody(r) {
       <tr><td>All threes</td>${r.p_3.map((p) => `<td class="num">${pct(p)}</td>`).join("")}</tr></table>
       ${r.p_play < 0.97 ? `<p style="margin-top:6px">Chance he plays: ${pct(r.p_play)} (chances above assume he does).</p>` : ""}
     </div>
-    <div><h3>So far this season</h3>
-      <table><tr><th></th><th>season</th><th>last 5</th></tr>
-      <tr><td>C&amp;S makes</td><td class="num">${f2(r.s_cs)}</td><td class="num">${f2(r.l5_cs)}</td></tr>
-      <tr><td>All threes made</td><td class="num">${f2(r.s_3)}</td><td class="num">${f2(r.l5_3)}</td></tr>
-      <tr><td>C&amp;S att (corner)</td><td class="num">${f2(r.s_csa)} (${f2(r.s_c3a)})</td><td></td></tr>
-      <tr><td>Minutes</td><td class="num">${f1(r.s_min)}</td><td></td></tr></table>
-      <p style="margin-top:6px">${r.gp} games.</p>
-    </div></div>`;
+    ${formBlock(r)}${passerBlock(r)}</div>`;
 }
 const nameOf = (pid) => { const r = S.b.rows.find((x) => x.pid === pid); return r ? r.name : String(pid); };
 function rankOf(key, team) {
@@ -915,12 +952,343 @@ async function okcbosView() {
 }
 
 /* ---------- shell ---------- */
+
+/* ---------- Team colors (from Model 1's Teams page): [band, stripe] ---------- */
+const TEAM_COLORS = {
+  ATL: ["#C8102E", "#FDB927"], BKN: ["#000000", "#777D84"], BOS: ["#007A33", "#BA9653"], CHA: ["#1D1160", "#00788C"],
+  CHI: ["#CE1141", "#000000"], CLE: ["#860038", "#FDBB30"], DAL: ["#00538C", "#B8C4CA"], DEN: ["#0E2240", "#FEC524"],
+  DET: ["#C8102E", "#1D42BA"], GSW: ["#1D428A", "#FFC72C"], HOU: ["#CE1141", "#C4CED4"], IND: ["#002D62", "#FDBB30"],
+  LAC: ["#1D428A", "#C8102E"], LAL: ["#552583", "#FDB927"], MEM: ["#12173F", "#5D76A9"], MIA: ["#98002E", "#F9A01B"],
+  MIL: ["#00471B", "#EEE1C6"], MIN: ["#0C2340", "#78BE20"], NOP: ["#0C2340", "#C8102E"], NYK: ["#006BB6", "#F58426"],
+  OKC: ["#007AC1", "#EF3B24"], ORL: ["#0077C0", "#C4CED4"], PHI: ["#006BB6", "#ED174C"], PHX: ["#1D1160", "#E56020"],
+  POR: ["#000000", "#E03A3E"], SAC: ["#5A2D81", "#63727A"], SAS: ["#000000", "#C4CED4"], TOR: ["#CE1141", "#000000"],
+  UTA: ["#3E2680", "#79A3DC"], WAS: ["#002B5C", "#E31837"],
+};
+const TEAM_NAMES = {
+  ATL: "Atlanta Hawks", BKN: "Brooklyn Nets", BOS: "Boston Celtics", CHA: "Charlotte Hornets", CHI: "Chicago Bulls",
+  CLE: "Cleveland Cavaliers", DAL: "Dallas Mavericks", DEN: "Denver Nuggets", DET: "Detroit Pistons", GSW: "Golden State Warriors",
+  HOU: "Houston Rockets", IND: "Indiana Pacers", LAC: "LA Clippers", LAL: "Los Angeles Lakers", MEM: "Memphis Grizzlies",
+  MIA: "Miami Heat", MIL: "Milwaukee Bucks", MIN: "Minnesota Timberwolves", NOP: "New Orleans Pelicans", NYK: "New York Knicks",
+  OKC: "Oklahoma City Thunder", ORL: "Orlando Magic", PHI: "Philadelphia 76ers", PHX: "Phoenix Suns", POR: "Portland Trail Blazers",
+  SAC: "Sacramento Kings", SAS: "San Antonio Spurs", TOR: "Toronto Raptors", UTA: "Utah Jazz", WAS: "Washington Wizards",
+};
+const ALL_TEAMS = Object.keys(TEAM_COLORS);
+const tcol = (t) => TEAM_COLORS[t] || ["#33413A", "#A9B3AC"];
+const teamBand = (t, inner) => { const [b, s] = tcol(t); return `<section class="tband" style="--tc:${b};--ts:${s}"><span class="twm" aria-hidden="true">${esc(t)}</span>${inner}</section>`; };
+const tonightOpp = () => S.b ? Object.fromEntries(S.b.games.flatMap((g) => [[g.away, g.home], [g.home, g.away]])) : {};
+const sdate = (s) => { const [, m, d] = s.split("-"); return `${+m}/${+d}`; };
+
+/* ---------- Recent form + passers (form.json) on the board ---------- */
+const formOf = (pid) => (S.form ? S.form[pid] : null);
+function formTags(pid) {
+  const f = formOf(pid); if (!f || f.s.gp < 8 || f.l5.gp < 5) return "";
+  const t = [], m5 = f.l5.csm, ms = f.s.csm, a5 = f.l5.csa, as = f.s.csa;
+  const tip = `Last 5 games: ${f2(m5)} C&S makes on ${f2(a5)} attempts a game. Season: ${f2(ms)} on ${f2(as)}.`;
+  if (m5 - ms >= 0.5 && m5 >= 1.25 * ms) t.push(`<span class="tag in" title="${tip}">hot</span>`);
+  else if (m5 - ms <= -0.5 && m5 <= 0.75 * ms) t.push(`<span class="tag out" title="${tip}">cold</span>`);
+  if (a5 - as >= 1 && a5 >= 1.25 * as) t.push(`<span class="tag in" title="${tip}">more looks</span>`);
+  else if (a5 - as <= -1 && a5 <= 0.75 * as) t.push(`<span class="tag out" title="${tip}">fewer looks</span>`);
+  return t.join("");
+}
+// a passer's situation tonight, from the board (his row or his team's injury list) plus calls on this page
+function passerNow(team, pid) {
+  const rows = rowsNow(), r = rows.find((x) => x.pid === pid);
+  if (r && r.team !== team) return { lab: `now on ${r.team}`, cls: "mut" };
+  const c = liveCalls()[pid];
+  if (c && c.live) return c.call === "out" ? { lab: "called out", cls: "dn" } : { lab: "called in", cls: "up" };
+  if (r) return r.p_play < 0.03 ? { lab: r.status || "out", cls: "dn" } : r.p_play < 0.97 ? { lab: `${r.status || "coach's call"} · plays ${pct(r.p_play)}`, cls: "warnc" } : { lab: "plays", cls: "mut" };
+  const t = S.b.teams[team], p = t && t.players.find((x) => x.pid === pid);
+  if (p) return p.p < 0.03 ? { lab: p.status || "out", cls: "dn" } : { lab: `${p.status || "coach's call"} · plays ${pct(p.p)}`, cls: "warnc" };
+  return S.b.teams[team] ? { lab: "not on tonight's list", cls: "mut" } : { lab: "", cls: "mut" };
+}
+function formBlock(r) {
+  const f = formOf(r.pid);
+  if (!f) return `<div><h3>So far this season</h3>
+      <table><tr><th></th><th>season</th><th>last 5</th></tr>
+      <tr><td>C&amp;S makes</td><td class="num">${f2(r.s_cs)}</td><td class="num">${f2(r.l5_cs)}</td></tr>
+      <tr><td>All threes made</td><td class="num">${f2(r.s_3)}</td><td class="num">${f2(r.l5_3)}</td></tr>
+      <tr><td>Minutes</td><td class="num">${f1(r.s_min)}</td><td></td></tr></table><p style="margin-top:6px">${r.gp} games.</p></div>`;
+  const cell = (k, a, b) => { const d = f[a][k] - f.s[k]; const cls = Math.abs(d) < (k === "mn" ? 1.5 : 0.25) ? "" : d > 0 ? "up" : "dn"; return `<td class="num ${b ? cls : ""}">${k === "mn" ? f1(f[a][k]) : f2(f[a][k])}</td>`; };
+  const line = (lab, k) => `<tr><td>${lab}</td>${cell(k, "s", false)}${cell(k, "l10", true)}${cell(k, "l5", true)}</tr>`;
+  const games = f.last.map(([d, o, a, m]) => `<span title="${esc(d)} vs ${esc(o)}">${sdate(d)} ${esc(o)} <b>${m}/${a}</b></span>`).join(" · ");
+  return `<div><h3>Recent form</h3>
+    <table><tr><th></th><th>season</th><th>last 10</th><th>last 5</th></tr>
+    ${line("C&amp;S attempts", "csa")}${line("C&amp;S makes", "csm")}${line("All 3PA", "fg3a")}${line("All 3PM", "fg3m")}${line("Minutes", "mn")}</table>
+    <p style="margin-top:6px">${f.s.gp} tracked games. Green/red = 0.25+ above/below his season (1.5+ for minutes). Last 10, C&amp;S makes/att, newest first:</p>
+    <p class="glog">${games}</p></div>`;
+}
+function passerBlock(r) {
+  const f = formOf(r.pid); if (!f || !f.passers || !f.passers.length) return "";
+  const rowsH = f.passers.map((p) => {
+    const st = passerNow(r.team, p.pid);
+    const wo = p.sat ? `${f2(p.wo_csm)} <small>(${p.sat} g)</small>` : `<span class="mut">hasn't sat</span>`;
+    return `<tr><td>${esc(p.name)}<br><small class="${st.cls}">${esc(st.lab)}</small></td><td class="num">${p.n} <small>${pct(p.share)}</small></td><td class="num">${f2(p.with_csm)}</td><td class="num">${wo}</td></tr>`;
+  }).join("");
+  return `<div><h3>Who sets up his threes</h3>
+    <p>${f.ast3} of his ${f.made3} made threes were assisted (${pct(f.ast3 / Math.max(f.made3, 1))}).</p>
+    <table><tr><th>Passer · tonight</th><th>ast'd 3s</th><th>C&amp;S M/g with</th><th>without</th></tr>${rowsH}</table>
+    <p style="margin-top:6px">"With / without" = his C&amp;S makes a game in games that passer played vs sat. Small samples swing a lot.</p></div>`;
+}
+
+/* ---------- Assisted tab: who gives up assisted threes ---------- */
+const AST_AREAS = [["lc", "L corner"], ["lw", "L wing"], ["top", "Top"], ["rw", "R wing"], ["rc", "R corner"]];
+async function assistedView() {
+  if (!S.ast) {
+    $("#view").innerHTML = `<div class="list"><div class="empty">Loading…</div></div>`;
+    try { S.ast = await getJSON("data/assisted.json"); } catch (e) { $("#view").innerHTML = `<div class="list"><div class="empty">No assisted-threes data yet.</div></div>`; return; }
+  }
+  const A = S.ast, win = S.astWin, p100 = S.astUnit === "p100", sfx = p100 ? "_100" : "";
+  $("#viewctl").innerHTML = `<div class="seg" id="astwin"><button data-v="l10" aria-pressed="${win === "l10"}">Last ${A.window}</button><button data-v="season" aria-pressed="${win === "season"}">Season</button></div>
+    <div class="seg" id="astunit"><button data-v="pg" aria-pressed="${!p100}">Per game</button><button data-v="p100" aria-pressed="${p100}">Per 100 poss</button></div>`;
+  document.querySelectorAll("#astwin button").forEach((b) => b.onclick = () => { S.astWin = b.dataset.v; assistedView(); });
+  document.querySelectorAll("#astunit button").forEach((b) => b.onclick = () => { S.astUnit = b.dataset.v; assistedView(); });
+  const D = A.defense[win], opp = tonightOpp();
+  const cols = [["ast3", "Ast 3PM", true], ["ast_pct", "Ast %", false], ["fg3m", "All 3PM", true], ["cs_m", "C&S 3PM", true],
+                ["atb", "Above break", true], ["cor", "Corners", true], ...AST_AREAS.map(([k, l]) => [k, l, true])];
+  const val = (x, k, u) => k === "ast_pct" ? x.ast_pct : x[k + (u ? sfx : "")];
+  const rank = {}, lg = {};
+  cols.forEach(([k, , u]) => {
+    const s = [...D].sort((a, b) => (val(b, k, u) ?? -1) - (val(a, k, u) ?? -1));
+    rank[k] = Object.fromEntries(s.map((x, i) => [x.team, i + 1]));
+    lg[k] = D.reduce((a, x) => a + (val(x, k, u) || 0), 0) / D.length;
+  });
+  const [sk, dir] = S.astSort, su = (cols.find((c) => c[0] === sk) || [, , true])[2];
+  const d = [...D].sort((a, b) => sk === "team" ? dir * a.team.localeCompare(b.team) : dir * ((val(a, sk, su) ?? -1e9) - (val(b, sk, su) ?? -1e9)));
+  const cellH = (x, k, u) => { const v = val(x, k, u), rk = rank[k][x.team]; const cls = rk <= 5 ? "hot" : rk >= 26 ? "cold" : "";
+    return `<td class="num">${k === "ast_pct" ? pct(v) : f1(v)}${cls ? ` <span class="pill ${cls}" title="rank ${rk} of 30">${rk}</span>` : ""}</td>`; };
+  const L = A.league;
+  const panel = S.astDef ? astPanel(S.astDef, D, rank, lg, sfx, opp) : "";
+  $("#view").innerHTML = `<p class="note">Assisted made threes each defense allowed${win === "l10" ? ` over its last ${A.window} games` : " this season"}, ${p100 ? "per 100 of the offense's possessions" : "per game"}.
+    Assists only exist on makes, so these are makes. NBA.com doesn't tag single shots as catch-and-shoot, so assisted makes stand in for C&amp;S makes: league-wide ${pct(L.ast3 / L.made3)} of made threes are assisted (${pct(L.corner_ast)} in the corners, ${pct(L.atb_ast)} above the break), and assisted makes run a bit higher than tracked C&amp;S makes (${L.ast3} vs ${L.tracked_cs_m}) because some come after a dribble. Green = top 5 (gives up the most), red = bottom 5. Areas are NBA.com's shot-chart labels. Tap a defense to see the team playing it.${A.missing_games.length ? ` ${A.missing_games.length} game(s) with incomplete play-by-play are left out.` : ""}</p>
+    ${panel}
+    <div class="card scroll"><table class="sortable nowrap" id="asttable"><tr><th data-k="team">Defense</th>${cols.map(([k, l]) => `<th data-k="${k}" ${k === sk ? `aria-sort="${dir < 0 ? "descending" : "ascending"}"` : ""}>${l}${k === sk ? (dir < 0 ? " ↓" : " ↑") : ""}</th>`).join("")}<th>GP</th></tr>
+    ${d.map((x) => `<tr class="${opp[x.team] ? "hl" : ""}" data-def="${x.team}" style="cursor:pointer"><td><span class="tdot" style="background:${tcol(x.team)[0]}"></span><b>${esc(x.team)}</b> <span class="meta">${S.astDef === x.team ? "▾" : "▸"}${opp[x.team] ? ` vs ${esc(opp[x.team])}` : ""}</span></td>
+      ${cols.map(([k, , u]) => cellH(x, k, u)).join("")}<td class="num mut">${x.gp}</td></tr>`).join("")}
+    <tr class="lgrow"><td>League avg</td>${cols.map(([k]) => `<td class="num">${k === "ast_pct" ? pct(lg[k]) : f1(lg[k])}</td>`).join("")}<td></td></tr></table></div>`;
+  $("#view").querySelectorAll("#asttable th[data-k]").forEach((th) => th.onclick = () => {
+    const c = th.dataset.k; S.astSort = [c, S.astSort[0] === c ? -S.astSort[1] : (c === "team" ? 1 : -1)]; assistedView(); });
+  $("#view").querySelectorAll("#asttable tr[data-def]").forEach((tr) => tr.onclick = () => {
+    const t = tr.dataset.def; S.astDef = S.astDef === t ? null : t; S.astOff = S.astDef ? (opp[S.astDef] || null) : null; S.astPSort = ["ast3", -1];
+    assistedView().then(() => { const el = $("#astpanel"); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); }); });
+  const sel = $("#astoff"); if (sel) { sel.value = S.astOff || ""; sel.onchange = (e) => { S.astOff = e.target.value || null; assistedView(); }; }
+  if ($("#astclose")) $("#astclose").onclick = () => { S.astDef = null; assistedView(); };
+  $("#view").querySelectorAll("#astp th[data-k]").forEach((th) => th.onclick = () => {
+    const c = th.dataset.k; S.astPSort = [c, S.astPSort[0] === c ? -S.astPSort[1] : (c === "name" ? 1 : -1)]; assistedView(); });
+}
+function astPanel(def, D, rank, lg, sfx, opp) {
+  const x = D.find((y) => y.team === def); if (!x) return "";
+  const areas = AST_AREAS.map(([k, l]) => {
+    const v = x[k + sfx], r = rank[k][def], rel = lg[k] > 0 ? v / lg[k] : 1;
+    return `<div class="abar"><span>${l}</span><i style="width:${Math.min(100, 50 * rel)}%;background:${rel >= 1.1 ? "var(--net)" : rel <= 0.9 ? "var(--miss)" : "var(--faint)"}"></i><b class="num">${f1(v)}</b><small>×${f2(rel)} · #${r}</small></div>`;
+  }).join("");
+  const offs = ALL_TEAMS.filter((t) => t !== def);
+  let players = "";
+  if (S.astOff) {
+    // per game everywhere here: a player's assisted makes by area, season
+    const P = Object.entries(S.ast.players).filter(([, p]) => p.team === S.astOff && p.s.gp >= 3).map(([pid, p]) => {
+      const tot = AST_AREAS.reduce((a, [k]) => a + p.s[k], 0);
+      const fit = tot > 0 ? AST_AREAS.reduce((a, [k]) => a + p.s[k] * (x[k] / Math.max(lgPg(k), 1e-9)), 0) / tot : null;
+      const f = formOf(Number(pid));
+      return { pid: Number(pid), name: p.name, gp: p.s.gp, ast3: p.s.ast3, csa: f ? f.s.csa : null, fit, ...Object.fromEntries(AST_AREAS.map(([k]) => [k, p.s[k]])) };
+    }).filter((p) => p.ast3 >= 0.2);
+    const [k, dir] = S.astPSort;
+    P.sort((a, b) => k === "name" ? dir * a.name.localeCompare(b.name) : dir * ((a[k] ?? -1e9) - (b[k] ?? -1e9)));
+    const th = [["name", "Player"], ["ast3", "Ast 3PM"], ...AST_AREAS, ["csa", "C&S 3PA"], ["fit", "Area fit"]];
+    players = `<h3 style="margin-top:14px">${esc(S.astOff)} players vs ${esc(def)}</h3>
+      <p class="sub">Each player's assisted made threes a game this season, by area. <b>Area fit</b> = how much more (above 1) or less this defense allows in the areas his assisted makes come from, ${S.astWin === "l10" ? `over its last ${S.ast.window}` : "this season"} (1.00 = league average).</p>
+      <div class="scroll"><table class="sortable nowrap" id="astp"><tr>${th.map(([c, l]) => `<th data-k="${c}" ${c === k ? `aria-sort="${dir < 0 ? "descending" : "ascending"}"` : ""}>${l}${c === k ? (dir < 0 ? " ↓" : " ↑") : ""}</th>`).join("")}</tr>
+      ${P.map((p) => `<tr><td>${esc(p.name)} <small class="mut">${p.gp} g</small>${formTags(p.pid)}</td><td class="num"><b>${f2(p.ast3)}</b></td>${AST_AREAS.map(([a]) => `<td class="num">${f2(p[a])}</td>`).join("")}<td class="num">${f1(p.csa)}</td><td class="num"><span class="pill ${p.fit >= 1.08 ? "hot" : p.fit <= 0.92 ? "cold" : ""}">${p.fit == null ? "–" : "×" + f2(p.fit)}</span></td></tr>`).join("") || `<tr><td colspan="9" class="mut">No players with assisted threes yet.</td></tr>`}</table></div>`;
+  }
+  return `<div class="card" id="astpanel" style="padding:0;overflow:hidden">${teamBand(def, `<div class="tbtop"><h2>${esc(TEAM_NAMES[def] || def)} defense</h2><button class="btn" id="astclose">Close</button></div>
+      <p class="tbmeta">${f1(x["ast3" + sfx])} assisted threes allowed${sfx ? " per 100" : " a game"} (#${rank.ast3[def]} of 30) · ${pct(x.ast_pct)} of threes allowed were assisted (#${rank.ast_pct[def]})</p>`)}
+    <div style="padding:14px 16px">
+      <h3>By area, against league average</h3><div class="abars">${areas}</div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px"><label class="meta" for="astoff" style="margin:0">Team playing ${esc(def)}:</label>
+      <select id="astoff"><option value="">Pick a team…</option>${offs.map((t) => `<option value="${t}">${t}${opp[def] === t ? " · tonight" : ""}</option>`).join("")}</select></div>
+      ${players}</div></div>`;
+}
+function lgPg(k) { const D = S.ast.defense[S.astWin]; return D.reduce((a, x) => a + (x[k] || 0), 0) / D.length; }
+
+/* ---------- Team Cards: who takes the threes, game by game, and how it shifts when someone sits ---------- */
+const TC_STATS = [
+  ["min", "MIN", "Minutes"], ["usg", "USG%", "Usage % (share of team plays on the floor ending in his shot, FT trip or turnover)"],
+  ["fga", "FGA", "Field goal attempts"], ["pts", "PTS", "Points"],
+  ["fg3a", "3PA", "All three-point attempts"], ["fg3m", "3PM", "All threes made"],
+  ["cs_a", "C&S 3PA", "Catch-and-shoot three attempts"], ["cs_m", "C&S 3PM", "Catch-and-shoot threes made"], ["cs_pct", "C&S 3P%", "Catch-and-shoot three %"],
+  ["c3_a", "Cnr C&S A", "Corner C&S attempts"], ["c3_m", "Cnr C&S M", "Corner C&S makes"],
+  ["atb_a", "ATB C&S A", "Above-the-break C&S attempts"], ["atb_m", "ATB C&S M", "Above-the-break C&S makes"],
+  ["pu_a", "PU 3PA", "Pull-up three attempts"], ["pu_m", "PU 3PM", "Pull-up threes made"],
+  ["ast3", "Ast 3PM", "Assisted threes made"],
+];
+const TC_REG = 20, TC_MATE = 12;
+async function cardDoc(team) {
+  S.tcDocs = S.tcDocs || {};
+  if (S.tcDocs[team] === undefined) { try { S.tcDocs[team] = await getJSON(`data/cards/${team}.json`); } catch (e) { S.tcDocs[team] = null; } }
+  return S.tcDocs[team];
+}
+function tcUtil(d) {
+  const ix = {}; d.fields.forEach((f, i) => (ix[f] = i));
+  const v = (g, pid, k) => { const r = g.p[pid]; return r ? r[ix[k]] : undefined; };
+  function avg(games, pid, k) {
+    let s = 0, n = 0, w = 0, gp = 0, mine = 0, team = 0;
+    for (const g of games) {
+      if (!g.p[pid]) continue; gp++;
+      if (k === "cs_pct") { const a = v(g, pid, "cs_a"), m = v(g, pid, "cs_m"); if (a != null) { s += m; w += a; n++; } continue; }
+      const x = v(g, pid, k); if (x == null) continue;
+      if (k === "usg") { const m = v(g, pid, "min"); s += x * m; w += m; } else { s += x; n++; }
+      if (k !== "min") { let t = 0; for (const q in g.p) { const y = g.p[q][ix[k]]; if (y != null) t += y; } mine += x; team += t; }
+    }
+    const a = k === "cs_pct" ? (w >= 5 ? s / w : null) : k === "usg" ? (w ? s / w : null) : (n ? s / n : null);
+    return { v: a, gp, n: k === "cs_pct" ? w : n, share: team ? mine / team : null };
+  }
+  return { v, avg };
+}
+const tcMatch = (d, f) => d.games.filter((g) => Object.entries(f).every(([pid, st]) => (st === "out" ? g.sat.includes(pid) : !!g.p[pid])));
+const tcFmt = (x, k) => x == null ? "–" : k === "cs_pct" ? pct(x, 1) : (k === "min" || k === "usg" || k === "pts" || k === "fga") ? x.toFixed(1) : x.toFixed(2);
+const tcShort = (nm) => { const p = (nm || "").split(" "); return p.length > 1 ? p.slice(1).join(" ") : nm; };
+function tcPlayers(d, games) {
+  const U = tcUtil(d);
+  return Object.keys(d.players).map((pid) => ({ pid, name: d.players[pid].name, m: U.avg(games, pid, "min") })).filter((x) => x.m.gp > 0).sort((a, b) => b.m.v - a.m.v);
+}
+async function cardsView() {
+  if (!S.tc) {
+    let team = null; try { team = localStorage.getItem("nba3-tc-team"); } catch (e) {}
+    if (!team && S.b && S.b.games.length) team = S.b.games[0].away;
+    S.tc = { team: team || "ATL", stat: "cs_m", f: {}, sort: "tot" };
+  }
+  const T = S.tc;
+  $("#viewctl").innerHTML = "";
+  const d = await cardDoc(T.team);
+  const opp = tonightOpp();
+  const order = [...ALL_TEAMS.filter((t) => opp[t]), ...ALL_TEAMS.filter((t) => !opp[t])];
+  const opts = order.map((t) => `<option value="${t}"${t === T.team ? " selected" : ""}>${esc(TEAM_NAMES[t])}${opp[t] ? ` · tonight vs ${opp[t]}` : ""}</option>`).join("");
+  const [, , sname] = TC_STATS.find((s) => s[0] === T.stat);
+  let meta = "", bar = "";
+  if (d && d.games.length) {
+    const n = d.games.length, w = d.games.filter((g) => g.wl === "W").length, last = d.games[n - 1], games = tcMatch(d, T.f), f = Object.entries(T.f);
+    meta = `${w}–${n - w} in ${n} games. Last played ${sdate(last.date)} ${last.home ? "vs" : "at"} ${esc(last.opp)}.${opp[T.team] ? ` Tonight vs ${esc(opp[T.team])}.` : ""}`;
+    if (f.length) meta += ` Showing the ${games.length} game${games.length === 1 ? "" : "s"} where ${f.map(([pid, s]) => `${esc(tcShort(d.players[pid].name))} ${s === "out" ? "sat" : "played"}`).join(" and ")}.`;
+    bar = tcShareBar(d, games, T.stat);
+  }
+  const pills = TC_STATS.map(([k, l, tip]) => `<button type="button" data-tcs="${k}" aria-pressed="${k === T.stat}" title="${esc(tip)}">${l}</button>`).join("");
+  const hero = teamBand(T.team, `<div class="tbtop"><h2>${esc(TEAM_NAMES[T.team] || T.team)}</h2><select id="tcteam" aria-label="Team">${opts}</select></div>
+    ${meta ? `<p class="tbmeta">${meta}</p>` : ""}<div class="tbpills" role="group" aria-label="Stat">${pills}</div>${bar}`);
+  let body;
+  if (d === null) body = `<div class="card"><p class="empty">No team card for ${esc(T.team)} yet. Team Cards are built on each run at home.</p></div>`;
+  else if (!d.games.length) body = `<div class="card"><p class="empty">No games yet.</p></div>`;
+  else body = tcFilters(d, T) + tcTable(d, T) + tcPassers(d, T) + tcSits(d, T);
+  $("#view").innerHTML = hero + body;
+  $("#tcteam").onchange = (e) => { T.team = e.target.value; T.f = {}; T.sort = "tot"; try { localStorage.setItem("nba3-tc-team", T.team); } catch (er) {} cardsView(); };
+  $("#view").querySelectorAll("[data-tcs]").forEach((b) => b.onclick = () => { T.stat = b.dataset.tcs; cardsView(); });
+  $("#view").querySelectorAll("[data-tcf]").forEach((b) => b.onclick = () => {
+    const p = b.dataset.tcf, st = T.f[p] || "any"; const nx = { any: "out", out: "in", in: "any" }[st];
+    if (nx === "any") delete T.f[p]; else T.f[p] = nx; if (!Object.keys(T.f).length) T.sort = "tot"; cardsView(); });
+  $("#view").querySelectorAll("[data-tcsort]").forEach((b) => b.onclick = () => { T.sort = b.dataset.tcsort; cardsView(); });
+  if ($("#tcreset")) $("#tcreset").onclick = () => { T.f = {}; T.sort = "tot"; cardsView(); };
+  $("#view").querySelectorAll("[data-tcsit]").forEach((b) => b.onclick = () => { T.f = { [b.dataset.tcsit]: "out" }; T.sort = "up"; cardsView(); window.scrollTo({ top: 0, behavior: "smooth" }); });
+}
+function tcShareBar(d, games, k) {
+  if (k === "cs_pct" || k === "min" || k === "usg") return "";
+  const ix = d.fields.indexOf(k), tot = {}; let all = 0;
+  for (const g of games) for (const pid in g.p) { const v = g.p[pid][ix]; if (v == null) continue; tot[pid] = (tot[pid] || 0) + v; all += v; }
+  if (!(all > 0)) return `<p class="tbshare-t">No ${esc(TC_STATS.find((s) => s[0] === k)[1])} data for these games yet.</p>`;
+  const sh = Object.entries(tot).map(([pid, v]) => ({ name: d.players[pid].name, s: v / all })).filter((x) => x.s > 0).sort((a, b) => b.s - a.s);
+  const A = [0.95, 0.78, 0.62, 0.5, 0.4, 0.32, 0.26], top = sh.slice(0, 7), rest = sh.slice(7).reduce((a, x) => a + x.s, 0);
+  const segs = top.map((x, i) => ({ lab: tcShort(x.name), full: x.name, s: x.s, a: A[i] })).concat(rest >= 0.005 ? [{ lab: "Everyone else", full: "Everyone else", s: rest, a: 0.14 }] : []);
+  const p = (s) => Math.round(s * 100);
+  return `<p class="tbshare-t">Share of the team's ${esc(TC_STATS.find((s) => s[0] === k)[1])}, ${games.length === d.games.length ? `all ${games.length} games` : `the ${games.length} game${games.length === 1 ? "" : "s"} shown`}</p>
+    <div class="tbbar">${segs.map((x) => `<span style="flex:${x.s.toFixed(4)} 1 0;--a:${x.a}" title="${esc(x.full)} ${p(x.s)}%">${x.s >= 0.12 ? p(x.s) + "%" : ""}</span>`).join("")}</div>
+    <ul class="tbleg">${segs.map((x) => `<li style="--a:${x.a}"><i></i>${esc(x.lab)} <b>${p(x.s)}%</b></li>`).join("")}</ul>`;
+}
+function tcFilters(d, T) {
+  const all = tcPlayers(d, d.games), sat = (pid) => d.games.filter((g) => g.sat.includes(pid)).length;
+  const never = Object.keys(d.players).filter((pid) => d.players[pid].cur && !all.some((x) => x.pid === pid));
+  const opp = tonightOpp(), tonight = !!opp[T.team];
+  const chips = all.map((x) => {
+    const st = T.f[x.pid] || "any", now = tonight ? passerNow(T.team, Number(x.pid)) : null;
+    const flag = now && (now.cls === "dn" || now.cls === "warnc") ? ` <span class="${now.cls}">· ${esc(now.lab)}</span>` : "";
+    return `<button type="button" class="pchip" data-tcf="${x.pid}" data-st="${st}">${st === "out" ? "Sat: " : st === "in" ? "Played: " : ""}${esc(x.name)}<small>${x.m.v.toFixed(0)} mpg · sat ${sat(x.pid)}${flag}</small></button>`;
+  }).join("");
+  const games = tcMatch(d, T.f);
+  return `<div class="card"><h2>Who's out <span class="meta" style="font-weight:500">${games.length} of ${d.games.length} games match</span></h2>
+    <p class="sub">Tap a name once for games he <b>sat</b>, again for games he <b>played</b>, again to clear. Sat = with the team but didn't play (injury, rest or coach's call). ${tonight ? "Tonight's injury status shows under each name. " : ""}Sorted by minutes a game.</p>
+    <div class="pchips">${chips}</div>
+    ${never.length ? `<p class="sub" style="margin-top:8px">Hasn't played this season: ${never.map((p) => esc(d.players[p].name)).join(", ")}</p>` : ""}
+    ${Object.keys(T.f).length ? `<div style="margin-top:10px"><button class="btn" id="tcreset">Clear filters</button></div>` : ""}</div>`;
+}
+function tcTable(d, T) {
+  const U = tcUtil(d), games = tcMatch(d, T.f), active = Object.keys(T.f).length > 0;
+  if (!games.length) return `<div class="card"><p class="empty">No games match those filters.</p></div>`;
+  const k = T.stat;
+  let rows = tcPlayers(d, games).map((x) => {
+    const c = {}; TC_STATS.forEach(([s]) => (c[s] = U.avg(games, x.pid, s)));
+    const base = {}; if (active) TC_STATS.forEach(([s]) => (base[s] = U.avg(d.games, x.pid, s)));
+    const dl = active && c[k].v != null && base[k].v != null ? c[k].v - base[k].v : null;
+    return { ...x, c, base, dl };
+  });
+  const sortKey = { tot: (x) => x.c[k].v ?? -1e9, up: (x) => x.dl ?? -1e9, down: (x) => (x.dl == null ? -1e9 : -x.dl) }[active ? T.sort : "tot"];
+  rows.sort((a, b) => sortKey(b) - sortKey(a));
+  const colMax = {}; TC_STATS.forEach(([s]) => (colMax[s] = Math.max(0, ...rows.map((x) => x.c[s].v || 0))));
+  const th = TC_STATS.map(([s, l, tip]) => `<th class="${s === k ? "tcsel" : ""}" title="${esc(tip)}"><button type="button" class="sortb" data-tcs="${s}">${l}</button></th>`).join("");
+  const body = rows.map((x, i) => `<tr><td class="rk">${i + 1}</td><td class="pl">${esc(x.name)}<small>${x.c.min.gp} g</small></td>${TC_STATS.map(([s]) => {
+    const a = x.c[s], m = colMax[s], h = a.v != null && m > 0 ? Math.round(40 * Math.max(0, a.v) / m) : 0;
+    const top = a.v != null && m > 0 && a.v === m ? " top" : "";
+    let extra = "";
+    if (active && x.base[s].v != null && a.v != null) {
+      const dd = a.v - x.base[s].v, thr = s === "cs_pct" ? 0.01 : 0.05;
+      if (Math.abs(dd) >= thr) extra = `<small class="${dd > 0 ? "up" : "dn"}">${dd > 0 ? "+" : "−"}${s === "cs_pct" ? (Math.abs(dd) * 100).toFixed(1) : Math.abs(dd).toFixed(s === "min" || s === "usg" || s === "pts" || s === "fga" ? 1 : 2)}</small>`;
+    }
+    if (s === k && a.share != null && !active) extra = `<small class="mut">${Math.round(a.share * 100)}% of team</small>`;
+    return `<td class="tch${top}${s === k ? " tcsel" : ""}" style="--h:${h}%">${tcFmt(a.v, s)}${extra}</td>`;
+  }).join("")}</tr>`).join("");
+  const sorter = active ? `<div class="seg" style="margin:0 0 10px"><button data-tcsort="tot" aria-pressed="${T.sort === "tot"}">Totals</button><button data-tcsort="up" aria-pressed="${T.sort === "up"}">Biggest increase</button><button data-tcsort="down" aria-pressed="${T.sort === "down"}">Biggest decrease</button></div>` : "";
+  const puMiss = games.filter((g) => Object.values(g.p).some((r) => r[d.fields.indexOf("pu_a")] == null)).length;
+  const csMiss = games.filter((g) => Object.values(g.p).every((r) => r[d.fields.indexOf("cs_a")] == null)).length;
+  const notes = [];
+  if (puMiss) notes.push(`Pull-up threes are missing for ${puMiss} of these games (they fill in from NBA.com on the runs at home)`);
+  if (csMiss) notes.push(`${csMiss} game${csMiss === 1 ? " doesn't" : "s don't"} have C&amp;S tracking yet`);
+  return `<div class="card"><h2>Per game${active ? " in matching games" : ""} <span class="meta" style="font-weight:500">${games.length} game${games.length === 1 ? "" : "s"}</span></h2>
+    <p class="sub">Averages over the games each player played (C&amp;S 3P% needs 5+ attempts). Shading is against each column's leader (bold). ${active ? `Small green/red numbers = change from all his games. Sort by ${esc(TC_STATS.find((s) => s[0] === k)[1])} totals or by biggest increase/decrease.` : "The selected column also shows his share of the team's total."} Tap a column (or a button above) to pick the stat.${notes.length ? " " + notes.join("; ") + "." : ""}</p>
+    ${sorter}<div class="scroll"><table class="tctable"><tr><th></th><th class="pl">Player</th>${th}</tr>${body}</table></div></div>`;
+}
+function tcPassers(d, T) {
+  const games = tcMatch(d, T.f); if (!games.length) return "";
+  const by = {};
+  for (const g of games) for (const [s, list] of Object.entries(g.ap || {})) for (const [p, n] of list) { by[s] = by[s] || { tot: 0, p: {} }; by[s].tot += n; by[s].p[p] = (by[s].p[p] || 0) + n; }
+  const U = tcUtil(d);
+  const rows = Object.entries(by).sort((a, b) => b[1].tot - a[1].tot).slice(0, 10).map(([s, x]) => {
+    const a = U.avg(games, s, "ast3");
+    const ps = Object.entries(x.p).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([p, n]) => `${esc(tcShort(d.players[p] ? d.players[p].name : p))} <b>${n}</b>`).join(" · ");
+    return `<tr><td class="pl">${esc(d.players[s] ? d.players[s].name : s)}</td><td class="num">${x.tot}</td><td class="num">${f2(a.v)}</td><td style="text-align:left">${ps}</td></tr>`;
+  }).join("");
+  return `<div class="card"><h2>Who sets up the threes</h2><p class="sub">Assisted made threes in ${games.length === d.games.length ? "all games" : "the games shown"}, and who passed them. Follows the filters above.</p>
+    <div class="scroll"><table><tr><th>Shooter</th><th>Ast 3PM</th><th>per game</th><th style="text-align:left">Top passers</th></tr>${rows || `<tr><td colspan="4" class="mut">None yet.</td></tr>`}</table></div></div>`;
+}
+function tcSits(d, T) {
+  const U = tcUtil(d), k = T.stat, [, l] = TC_STATS.find((s) => s[0] === k);
+  const regs = tcPlayers(d, d.games).filter((x) => x.m.v >= TC_REG && d.games.some((g) => g.sat.includes(x.pid)));
+  const blocks = regs.map((r) => {
+    const out = d.games.filter((g) => g.sat.includes(r.pid)), inn = d.games.filter((g) => g.p[r.pid]);
+    const moves = tcPlayers(d, d.games).filter((x) => x.pid !== r.pid && x.m.v >= TC_MATE).map((x) => {
+      const a = U.avg(out, x.pid, k), b = U.avg(inn, x.pid, k);
+      return a.v != null && b.v != null && a.gp && b.gp ? { x, a, b, dd: a.v - b.v } : null;
+    }).filter(Boolean).sort((p, q) => Math.abs(q.dd) - Math.abs(p.dd)).slice(0, 5).sort((p, q) => q.dd - p.dd);
+    const lines = moves.length ? moves.map((m) => `<tr><td class="pl">${esc(m.x.name)}</td><td class="num">${tcFmt(m.b.v, k)}</td><td class="num">${tcFmt(m.a.v, k)}</td><td class="num ${m.dd > 0 ? "up" : "dn"}">${m.dd > 0 ? "+" : "−"}${k === "cs_pct" ? (Math.abs(m.dd) * 100).toFixed(1) : Math.abs(m.dd).toFixed(2)}</td><td class="num mut">${m.a.gp} / ${m.b.gp}</td></tr>`).join("")
+      : `<tr><td colspan="5" class="mut">No teammate data.</td></tr>`;
+    return `<div class="tcsit"><div class="tcsit-h"><b>Without ${esc(r.name)}</b><span class="meta">sat ${out.length} game${out.length === 1 ? "" : "s"}</span><button type="button" class="btn" data-tcsit="${r.pid}">Show these games</button></div>
+      <div class="scroll"><table><tr><th>Teammate</th><th>With him</th><th>Without</th><th>Change</th><th title="games without / with">Games</th></tr>${lines}</table></div></div>`;
+  }).join("");
+  return `<div class="card"><h2>Biggest changes when a regular sits: ${esc(l)}</h2>
+    <p class="sub">For each player averaging ${TC_REG}+ minutes who has missed a game: the teammates (${TC_MATE}+ minutes a game) whose ${esc(l)} moved most without him, up or down. Uses all of this season's games (ignores the filters above).</p>
+    ${blocks || `<p class="sub">No regular has missed a game yet this season.</p>`}</div>`;
+}
+
 function render() {
   if (!S.b) return;
   renderMeta();
   document.querySelectorAll(".tabs button").forEach((b) => b.setAttribute("aria-selected", b.dataset.tab === S.tab));
   document.querySelectorAll("#mode button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.mode === S.mode));
-  ({ board: boardView, funnels: funnelsView, defense: defenseView, teams: teamsView, okcbos: okcbosView, injuries: injuriesView, results: resultsView })[S.tab]();
+  ({ board: boardView, funnels: funnelsView, defense: defenseView, assisted: assistedView, teams: teamsView, cards: cardsView, okcbos: okcbosView, injuries: injuriesView, results: resultsView })[S.tab]();
 }
 document.querySelectorAll(".tabs button").forEach((b) => b.onclick = () => { S.tab = b.dataset.tab; location.hash = S.tab; render(); });
 document.querySelectorAll("#mode button").forEach((b) => b.onclick = () => { S.mode = b.dataset.mode; try { localStorage.setItem("nba3-mode", S.mode); } catch (e) {} if (S.sort === "p4" && S.mode === "cs") S.sort = "p3"; render(); });
@@ -938,6 +1306,7 @@ async function loadDate(date) {
   let dates = [];
   try { dates = await getJSON("data/dates.json"); } catch (e) {}
   try { S.results = await getJSON("data/results.json"); } catch (e) {}
+  try { S.form = await getJSON("data/form.json"); } catch (e) {}
   await loadDate(null);
   const sel = $("#date");
   sel.innerHTML = [...dates].reverse().map((d) => `<option value="${d}">${new Date(d + "T12:00").toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })}</option>`).join("");
