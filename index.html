@@ -164,6 +164,19 @@ small.up,small.dn,small.mut,small.warnc{font-weight:600}
 .abar{display:grid;grid-template-columns:70px 1fr 42px 90px;gap:8px;align-items:center;font-size:13px}
 .abar i{display:block;height:10px;border-radius:3px}
 .abar small{color:var(--soft)}
+
+/* team colors, kept light: a stripe and a faint wash keyed to the team */
+.row.tt{box-shadow:inset 4px 0 0 var(--tc);background:color-mix(in srgb,var(--tc) 4%,var(--sheet))}
+.row.tt:hover{background:color-mix(in srgb,var(--tc) 8%,var(--sheet))}
+.detail.tt{box-shadow:inset 4px 0 0 var(--tc);background:color-mix(in srgb,var(--tc) 2.5%,#FAFCFB)}
+tr.tt>td:first-child{box-shadow:inset 3px 0 0 var(--tc)}
+tr.tt>td{background:color-mix(in srgb,var(--tc) 3%,transparent)}
+tr.tt.hl>td{background:color-mix(in srgb,var(--tc) 8%,transparent)}
+tr.tt.hl>td:first-child{box-shadow:inset 5px 0 0 var(--tc)}
+.tchip.tt:not(.on){border-bottom:3px solid var(--tc)}
+.card.tt{box-shadow:0 0 0 1px var(--rule),inset 0 4px 0 var(--tc)}
+.fun-def.tt{border-left:4px solid var(--tc);padding-left:8px}
+.tdot.sm{width:7px;height:7px;margin-right:5px}
 </style>
 </head>
 <body>
@@ -497,7 +510,7 @@ async function defenseView() {
   const d = [...S.b.defense].sort((a, b) => k === "team" ? dir * a.team.localeCompare(b.team) : dir * ((a[k] ?? -1e9) - (b[k] ?? -1e9)));
   if (S.ddef && !S.teams) { try { S.teams = await getJSON("data/teams.json"); } catch (e) {} }
   $("#view").innerHTML = `<p class="note">Corner C&amp;S × = corner catch-and-shoot threes a defense allows compared with what the same shooters normally take (1.10 = 10% more). It's the defensive number Board 3 uses; above the break the defense barely matters (×0.95–1.06). Per-game columns are raw, not adjusted. Tonight's defenses are highlighted with their opponent. <b>Tap a team</b> to see the players facing it.</p>
-    ${S.ddef ? `<div class="card" id="defpanel">${defPanel(S.b.defense.find((y) => y.team === S.ddef), opp)}</div>` : ""}
+    ${S.ddef ? `<div class="card" id="defpanel" data-team="${esc(S.ddef)}">${defPanel(S.b.defense.find((y) => y.team === S.ddef), opp)}</div>` : ""}
     <div class="card scroll"><table class="sortable" id="deftable"><tr>${cols.map(([c, l]) => `<th data-k="${c}" ${c === k ? `aria-sort="${dir < 0 ? "descending" : "ascending"}"` : ""}>${l}${c === k ? (dir < 0 ? " ↓" : " ↑") : ""}</th>`).join("")}</tr>
     ${d.map((x) => `<tr class="${opp[x.team] ? "hl" : ""}" data-def="${x.team}" style="cursor:pointer"><td><b>${esc(x.team)}</b> <span class="meta">${S.ddef === x.team ? "▾" : "▸"}${opp[x.team] ? ` vs ${esc(opp[x.team])}` : ""}</span></td>
       <td class="num"><span class="pill ${x.cdef >= 1.08 ? "hot" : x.cdef <= 0.92 ? "cold" : ""}">${f2(x.cdef)}</span></td><td class="num">${f2(x.adef)}</td>
@@ -656,7 +669,7 @@ function resultsView() {
       </table></div></div>` +
     x.nights.map((n) => `<div class="card"><h2>${new Date(n.date + "T12:00").toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })}</h2>
       <p class="sub">Top 10: projected ${f1(n.top_pred)}, made <b>${n.top_act}</b> · whole slate: ${f1(n.pred)} projected, ${n.act} made${n.boost_vs_normal != null ? ` · 10 biggest boosts vs normal made ${sgn(n.boost_vs_normal)} vs their normals` : ""}</p>
-      <div class="scroll"><table><tr><th>Top 10</th><th>proj</th><th>made</th></tr>${n.top.map((t) => `<tr><td>${esc(t.PLAYER)} <span class="meta">${esc(t.TEAM)} vs ${esc(t.OPP)}</span></td><td class="num">${f2(t.exp)}</td><td class="num ${t.act >= Math.round(t.exp) ? "up" : "dn"}"><b>${t.act}</b></td></tr>`).join("")}</table></div></div>`).join("");
+      <div class="scroll"><table><tr><th>Top 10</th><th>proj</th><th>made</th></tr>${n.top.map((t) => `<tr data-team="${esc(t.TEAM)}"><td>${esc(t.PLAYER)} <span class="meta">${esc(t.TEAM)} vs ${esc(t.OPP)}</span></td><td class="num">${f2(t.exp)}</td><td class="num ${t.act >= Math.round(t.exp) ? "up" : "dn"}"><b>${t.act}</b></td></tr>`).join("")}</table></div></div>`).join("");
 }
 
 /* ---------- Teams: tap a defense, pick the team playing it, see that team's players vs bottom-5 C&S defenses ---------- */
@@ -1282,6 +1295,39 @@ function tcSits(d, T) {
     <p class="sub">For each player averaging ${TC_REG}+ minutes who has missed a game: the teammates (${TC_MATE}+ minutes a game) whose ${esc(l)} moved most without him, up or down. Uses all of this season's games (ignores the filters above).</p>
     ${blocks || `<p class="sub">No regular has missed a game yet this season.</p>`}</div>`;
 }
+
+/* ---------- Team colors across every tab (light touch) ---------- */
+function tintAll() {
+  const root = $("#view"); if (!root) return;
+  const teamOfPid = new Map(((S.b && S.b.rows) || []).map((r) => [r.pid, r.team]));
+  const isTeam = (t) => !!TEAM_COLORS[t];
+  const mark = (el, t) => { if (!isTeam(t)) return; el.classList.add("tt"); el.style.setProperty("--tc", TEAM_COLORS[t][0]); el.dataset.tt = t; };
+  root.querySelectorAll(".row[data-pid]:not([data-tt])").forEach((el) => {
+    const t = teamOfPid.get(Number(el.dataset.pid)); mark(el, t);
+    const d = el.parentElement && el.parentElement.querySelector(".detail"); if (d) mark(d, t);
+  });
+  root.querySelectorAll("tr[data-def]:not([data-tt])").forEach((el) => mark(el, el.dataset.def));
+  root.querySelectorAll("tr[data-team]:not([data-tt]), div[data-team]:not([data-tt])").forEach((el) => mark(el, el.dataset.team));
+  root.querySelectorAll(".tchip[data-t]:not([data-tt])").forEach((el) => mark(el, el.dataset.t));
+  root.querySelectorAll("#dptable tr[data-dp]:not([data-tt])").forEach((el) => mark(el, S.doff));
+  root.querySelectorAll("tr[data-dp]:not([data-tt]), tr[data-tp]:not([data-tt])").forEach((el) => mark(el, teamOfPid.get(Number(el.dataset.dp || el.dataset.tp))));
+  root.querySelectorAll(".card:not([data-tt]):not(.tbskip)").forEach((el) => {
+    const h = el.querySelector(":scope > h2"); if (!h) return;
+    const m = h.textContent.trim().match(/^([A-Z]{3})\b/); if (m && isTeam(m[1])) mark(el, m[1]);
+  });
+  root.querySelectorAll(".fun-def:not([data-tt])").forEach((el) => {
+    const m = el.textContent.match(/\b([A-Z]{3}) defense/); if (m) mark(el, m[1]);
+  });
+  root.querySelectorAll("td:not([data-tdot])").forEach((td) => {
+    const t = td.textContent.trim();
+    if (td.children.length === 0 && isTeam(t)) { td.dataset.tdot = "1"; td.innerHTML = `<span class="tdot sm" style="background:${TEAM_COLORS[t][0]}"></span>${esc(t)}`; }
+  });
+}
+(function () {
+  let queued = false;
+  new MutationObserver(() => { if (queued) return; queued = true; requestAnimationFrame(() => { queued = false; tintAll(); }); })
+    .observe(document.getElementById("view"), { childList: true, subtree: true });
+})();
 
 function render() {
   if (!S.b) return;
